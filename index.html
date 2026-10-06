@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tilt Trail Race</title>
+<style>
+:root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}}
+:root[data-theme="dark"]{--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);display:flex;justify-content:space-between;padding:10px 14px;font-weight:600;font-size:14px;pointer-events:none;text-shadow:0 0 6px var(--bg),0 0 6px var(--bg)}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0006;padding:16px}
+.card{background:var(--card);border-radius:18px;padding:22px;width:290px;max-height:90%;overflow:auto;text-align:center;box-shadow:0 8px 30px #0004}
+.card h1{margin:0 0 6px;font-size:25px}.card p{margin:6px 0 12px;font-size:14px;line-height:1.4;opacity:.8}
+.card input{display:block;box-sizing:border-box;width:100%;margin:0 0 8px;padding:10px;font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--ink);user-select:text;-webkit-user-select:text}
+.card ul{list-style:none;margin:0 0 12px;padding:0;text-align:left;font-size:14px}.card li{padding:5px 8px;border-bottom:1px solid var(--edge)}
+#sw{margin:0 0 10px}#sw button{width:30px;height:30px;padding:0;margin:3px;border-radius:50%;border:3px solid transparent}#sw button.on{border-color:var(--ink)}.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+.card #go{font:inherit;font-weight:700;font-size:16px;padding:12px 28px;border:0;border-radius:12px;background:var(--ball);color:#fff}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
+<div id="ov"><div class="card"><h1 id="h">Tilt Trail Race</h1><p id="msg">Drag on the screen to tilt the board and roll the ball to the green goal. Leave the track and you're frozen for 5 seconds!</p>
+<div id="sw"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
+<ul id="board"></ul><button id="go">Play</button></div></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
+const K=[2.6,3.6,4.8],WD=[.13,.11,.09],PEN=5000;
+let W,H,PW,ox,S,dpr,lvl=0,worldH=1,path=[],halfW=40,ball=null,state='menu',cam=0,t0=0,time=0,pen=0,maxIdx=0,frozenUntil=0,startAt=0,doneT=0,ovOn=true;
+let tilt={x:0,y:0},drag=null,keys={},room=null,myName='Player',HUES=[4,28,50,140,190,215,270,320],myHue=HUES[Math.random()*8|0],joinT=0,seen=new Set(),frame=0,lastK='';
+function swatches(){const b=$('sw');b.textContent='';HUES.forEach(h=>{const x=document.createElement('button');x.style.background='hsl('+h+',75%,55%)';x.className=h===myHue?'on':'';x.onclick=()=>{myHue=h;swatches();pres({c:h});if(ovOn)renderBoard()};b.appendChild(x)})}
+const hc=(h,l)=>'hsl('+((+h||0)%360)+',75%,'+(l||55)+'%)';
+const r3=v=>Math.round(v*1000)/1000;
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function cr(p0,p1,p2,p3,t){const t2=t*t,t3=t2*t;return[0,1].map(i=>.5*((2*p1[i])+(-p0[i]+p2[i])*t+(2*p0[i]-5*p1[i]+4*p2[i]-p3[i])*t2+(-p0[i]+3*p1[i]-3*p2[i]+p3[i])*t3))}
+function build(){
+ worldH=H*K[lvl];halfW=WD[lvl]*PW;const r=rng(1234+lvl*77),rows=Math.round(K[lvl]*7),P=[[.5,.035]];
+ for(let i=0;i<rows;i++)P.push([(i%2?.8:.2)+(r()-.5)*.14,.09+.82*i/(rows-1)]);
+ P.push([.5,.965]);const Q=P.map(q=>[ox+q[0]*PW,q[1]*worldH]);path=[];
+ for(let i=0;i<Q.length-1;i++){const a=Q[Math.max(i-1,0)],b=Q[i],c=Q[i+1],d=Q[Math.min(i+2,Q.length-1)];for(let k=0;k<12;k++)path.push(cr(a,b,c,d,k/12))}
+ path.push(Q[Q.length-1])}
+function resize(){
+ let nx,ny;if(ball){nx=(ball.x-ox)/PW;ny=ball.y/worldH}
+ dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+ PW=Math.min(W,H*.62);ox=(W-PW)/2;S=PW/400;build();
+ if(ball){ball.x=ox+nx*PW;ball.y=ny*worldH;ball.r=11*S+3}}
+function nearest(x,y){let best=1e9,bi=0,bx=0,by=0;
+ for(let i=0;i<path.length-1;i++){const[ax,ay]=path[i],[cx,cy]=path[i+1],dx=cx-ax,dy=cy-ay;let u=((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy||1);u=Math.max(0,Math.min(1,u));
+  const px=ax+u*dx,py=ay+u*dy,d=Math.hypot(x-px,y-py);if(d<best){best=d;bi=i+(u>.5?1:0);bx=px;by=py}}
+ return[best,bi,bx,by]}
+function spawn(){const p=path[0];ball={x:p[0],y:p[1],vx:0,vy:0,r:11*S+3};cam=0}
+const prog=()=>maxIdx/Math.max(1,path.length-1);
+function pres(v){if(room)room.presence(v).catch(()=>{})}
+function beginRace(l){lvl=l;build();pen=0;maxIdx=0;doneT=0;time=0;spawn();state='count';startAt=performance.now()+3000;lastK='';
+ $('lv').textContent='Level '+(lvl+1)+'/'+K.length;pres({l:lvl,d:0,g:0,pn:0});show(false)}
+function requestRace(l){if(room)pres({s:Date.now()+Math.random(),l});else beginRace(l)}
+function show(on){ovOn=on;$('ov').style.display=on?'flex':'none'}
+const sc=r=>r.d>0?2+1/(1+r.d):r.g;
+function rows(){
+ const me={n:myName,c:myHue,g:prog(),d:doneT,pn:pen,me:1};if(!room)return[me];
+ return room.peers().filter(p=>p.presence.n).map(p=>p.sameTab?me:{n:String(p.presence.n).slice(0,12),c:p.presence.c,g:+p.presence.g||0,d:+p.presence.d||0,pn:+p.presence.pn||0,me:0}).sort((a,b)=>sc(b)-sc(a))}
+function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')return;
+ rows().forEach((r,i)=>{const li=document.createElement('li');const dt=document.createElement('span');dt.className='dot';dt.style.background=hc(r.c);li.appendChild(dt);li.appendChild(document.createTextNode((state==='done'?(i+1)+'. ':'')+r.n+(r.me?' (you)':'')+' — '+(r.d>0?r.d.toFixed(1)+'s':state==='lobby'?'ready':Math.round(r.g*100)+'%')));ul.appendChild(li)})}
+function card(h,msg,btn,menu){$('sw').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
+function onPeers(){
+ for(const p of room.peers()){const s=p.presence.s;if(!s||seen.has(s))continue;seen.add(s);
+  if(state!=='menu'&&(p.isMe||performance.now()-joinT>2500))beginRace(+p.presence.l||0)}
+ if(ovOn)renderBoard()}
+async function doJoin(){
+ myName=($('nm').value.trim()||'Player').slice(0,12);const code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+ if(code){try{const R=window.claude&&await claude.use('room');if(R){room=await R.join('tilt-'+code);joinT=performance.now();room.onPeers(onPeers);pres({n:myName,c:myHue,l:lvl,x:0,y:0,g:0,d:0,pn:0})}}catch(e){room=null}}
+ state='lobby';card(code?'Room '+code:'Solo race',code?(room?'Share this code with friends so they can join. Pick your ball color above. Anyone can press Start.':'Multiplayer isn\'t available here, so you\'re racing solo.'):'Race the clock!','Start race',false)}
+$('go').onclick=()=>{if(state==='menu')doJoin();else if(state==='lobby')requestRace(lvl);else if(state==='done')requestRace((lvl+1)%K.length)};
+addEventListener('pointerdown',e=>{if(!ovOn)drag=[e.clientX,e.clientY]});
+addEventListener('pointermove',e=>{if(drag){tilt.x=Math.max(-1.5,Math.min(1.5,(e.clientX-drag[0])/70));tilt.y=Math.max(-1.5,Math.min(1.5,(e.clientY-drag[1])/70))}});
+addEventListener('pointerup',()=>{drag=null;tilt.x=tilt.y=0});
+addEventListener('keydown',e=>{if(!ovOn)keys[e.key]=1});addEventListener('keyup',e=>keys[e.key]=0);
+addEventListener('resize',resize);
+function step(){
+ const now=performance.now();frame++;
+ if(!drag){tilt.x=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);tilt.y=(keys.ArrowDown?1:0)-(keys.ArrowUp?1:0)}
+ if(state==='count'&&now>=startAt){state='play';t0=now}
+ if(state==='frozen'&&now>=frozenUntil)state='play';
+ if(state==='play'){
+  ball.vx+=tilt.x*.32*S;ball.vy+=tilt.y*.32*S;ball.vx*=.985;ball.vy*=.985;
+  const m=9*S,sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  if(ball.x<ox+ball.r||ball.x>ox+PW-ball.r){ball.x=Math.max(ox+ball.r,Math.min(ox+PW-ball.r,ball.x));ball.vx*=-.4}
+  if(ball.y<ball.r||ball.y>worldH-ball.r){ball.y=Math.max(ball.r,Math.min(worldH-ball.r,ball.y));ball.vy*=-.4}
+  const[d,i,px,py]=nearest(ball.x,ball.y);if(i>maxIdx&&i-maxIdx<25)maxIdx=i;
+  if(d>halfW+ball.r*.2){const k=halfW*.92/(d||1);ball.x=px+(ball.x-px)*k;ball.y=py+(ball.y-py)*k;ball.vx=ball.vy=0;pen++;state='frozen';frozenUntil=now+PEN;navigator.vibrate&&navigator.vibrate(120)}
+  const e=path[path.length-1];
+  if(Math.hypot(ball.x-e[0],ball.y-e[1])<halfW*.7){state='done';doneT=+((now-t0)/1000).toFixed(2);maxIdx=path.length-1;pres({d:doneT,g:1,pn:pen});navigator.vibrate&&navigator.vibrate([40,40,40]);
+   card('Finished!','Time '+doneT.toFixed(1)+'s with '+pen+' penalt'+(pen==1?'y':'ies')+'.','Next race',false)}}
+ if(ball&&(state==='play'||state==='frozen')){time=(now-t0)/1000;
+  if(room&&frame%3==0){const v={x:r3((ball.x-ox)/PW),y:r3(ball.y/worldH),g:r3(prog()),pn:pen};const k=JSON.stringify(v);if(k!==lastK){lastK=k;pres(v)}}}
+ if(ball){const tg=Math.max(0,Math.min(worldH-H,ball.y-H*.5));cam+=(tg-cam)*.15}
+ $('tm').textContent=state==='play'||state==='frozen'?time.toFixed(1)+'s':'';
+ let ps=pen?pen+' pen':'';if(room&&(state==='play'||state==='frozen')){const a=rows(),me=sc({g:prog(),d:doneT});ps=(1+a.filter(r=>sc(r)>me&&!r.me).length)+'/'+a.length+(ps?' · '+ps:'')}
+ $('ps').textContent=ps}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function dot(x,y,r,fill,a){ctx.globalAlpha=a||1;ctx.fillStyle=fill;ctx.beginPath();ctx.arc(x,y,Math.max(r,0),0,7);ctx.fill();ctx.globalAlpha=1}
+function draw(){
+ ctx.clearRect(0,0,W,H);if(!path.length)return;ctx.save();ctx.translate(0,-cam);
+ ctx.lineCap=ctx.lineJoin='round';ctx.beginPath();path.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+ ctx.strokeStyle=css('--edge');ctx.lineWidth=halfW*2+6;ctx.stroke();ctx.strokeStyle=css('--track');ctx.lineWidth=halfW*2;ctx.stroke();
+ const e=path[path.length-1],g=css('--goal');dot(e[0],e[1],halfW*.7,g,.3);ctx.strokeStyle=g;ctx.lineWidth=3;ctx.beginPath();ctx.arc(e[0],e[1],halfW*.7,0,7);ctx.stroke();
+ if(room&&state!=='menu'&&state!=='lobby'){ctx.font='600 12px system-ui';ctx.textAlign='center';
+  for(const p of room.peers()){const q=p.presence;if(p.sameTab||q.x==null||q.l!==lvl)continue;const x=ox+q.x*PW,y=q.y*worldH,col=hc(q.c);
+   dot(x,y,ball.r,col,.7);if(q.f){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,ball.r+4,0,7);ctx.stroke()}
+   ctx.fillStyle=css('--ink');ctx.fillText(String(q.n||'').slice(0,12),x,y-ball.r-6)}}
+ if(ball){const r=ball.r,fz=state==='frozen';dot(ball.x+3,ball.y+4,r,'#000',.2);
+  const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,fz?'#e0e4ec':hc(myHue,80));gr.addColorStop(1,fz?'#8791a5':hc(myHue,50));
+  ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill();
+  if(fz){const rem=Math.max(0,frozenUntil-performance.now())/PEN;ctx.strokeStyle='#4aa3ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(ball.x,ball.y,r+7,-Math.PI/2,-Math.PI/2+6.283*rem);ctx.stroke()}}
+ ctx.restore();ctx.textAlign='center';ctx.fillStyle=css('--ink');
+ if(state==='count'){ctx.font='700 90px system-ui';ctx.fillText(Math.max(1,Math.ceil((startAt-performance.now())/1000)),W/2,H*.3)}
+ if(state==='frozen'){ctx.font='700 22px system-ui';ctx.fillText('Frozen '+((frozenUntil-performance.now())/1000).toFixed(1)+'s',W/2,H*.2)}}
+swatches();resize();card('Tilt Trail Race','Drag on the screen to tilt the board and roll the ball to the green goal. Leave the track and you\'re frozen for 5 seconds!','Play',true);
+(function loop(){step();draw();requestAnimationFrame(loop)})();
+</script></body></html>
