@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tilt Trail Race</title>
+<title>Tilt Trail Race v3</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -174,6 +174,6 @@ function draw(){
  if(state==='frozen'){ctx.font='700 22px system-ui';ctx.fillText('Frozen '+((frozenUntil-performance.now())/1000).toFixed(1)+'s',W/2,H*.2)}}
 swatches();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
-card('Tilt Trail Race','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back) and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
+card('Tilt Trail Race v3','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back) and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
 (function loop(){step();draw();requestAnimationFrame(loop)})();
 </script></body></html>
