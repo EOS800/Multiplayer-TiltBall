@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tilt Trail Race v3</title>
+<title>Tilt Trail Race v5</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -15,6 +15,7 @@ canvas{display:block;width:100%;height:100%}
 .card h1{margin:0 0 6px;font-size:25px}.card p{margin:6px 0 12px;font-size:14px;line-height:1.4;opacity:.8}
 .card input{display:block;box-sizing:border-box;width:100%;margin:0 0 8px;padding:10px;font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--ink);user-select:text;-webkit-user-select:text}
 .card ul{list-style:none;margin:0 0 12px;padding:0;text-align:left;font-size:14px}.card li{padding:5px 8px;border-bottom:1px solid var(--edge)}
+#tr{margin:0 0 10px;font-size:13px}#tr span{display:block;opacity:.7;margin-bottom:2px}#tr button{font:inherit;font-size:13px;padding:5px 10px;margin:2px;border-radius:14px;border:2px solid var(--edge);background:var(--bg);color:var(--ink)}#tr button.on{border-color:var(--ink);font-weight:700}
 #sw{margin:0 0 10px}#sw button{width:30px;height:30px;padding:0;margin:3px;border-radius:50%;border:3px solid transparent}#sw button.on{border-color:var(--ink)}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
 .card #go{font:inherit;font-weight:700;font-size:16px;padding:12px 28px;border:0;border-radius:12px;background:var(--ball);color:#fff}.card #go:disabled{opacity:.5}
@@ -22,42 +23,44 @@ canvas{display:block;width:100%;height:100%}
 <canvas id="c"></canvas>
 <div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
 <div id="ov"><div class="card"><h1 id="h">Tilt Trail Race</h1><p id="msg"></p>
-<div id="sw"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
-<ul id="board"></ul><button id="go">Play</button></div></div>
+<div id="sw"></div><div id="tr"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
+<div id="lvp"><input id="lvn" type="number" min="1" max="100" placeholder="Level (1-100)"></div><ul id="board"></ul><button id="go">Play</button></div></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
-const LV=[{name:'Oval Cup',loop:1,laps:3,k:1.4,w:.14,pc:3,seed:11,amp:.10},{name:'Twist Cup',loop:1,laps:3,k:1.8,w:.12,pc:5,seed:22,amp:.22},{name:'Snake Cup',loop:1,laps:3,k:2.2,w:.105,pc:7,seed:33,amp:.30},{name:'Long Sprint',loop:0,laps:1,k:3.6,w:.11,pc:7,seed:44}],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
+const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
+for(let n=0;n<NL;n++){const t=n/(NL-1);LV.push(n%5!==4?{name:'Circuit '+(n+1),loop:1,laps:n<30?3:2,k:1.8+3.4*t,w:.11-.055*t,pc:Math.round(3+t*8),seed:n*37+5,amp:.1+.28*t,M:12+Math.round(12*t)}:{name:'Sprint '+(n+1),loop:0,laps:1,k:3+4*t,w:.105-.05*t,pc:Math.round(4+t*10),seed:n*37+5})}
 let W,H,PW,ox,S,dpr,lvl=0,worldH=1,path=[],halfW=40,ball=null,state='menu',cam=0,t0=0,time=0,pen=0,total=0,lastIdx=0,portals=[],noPortal=0,msgUntil=0,buf=new Map(),frozenUntil=0,startAt=0,doneT=0,ovOn=true,frame=0,tk=0;
-let tilt={x:0,y:0},drag=null,keys={},myName='Player',myHue=HUES[Math.random()*8|0],code='';
+let tilt={x:0,y:0},drag=null,keys={},myName='Player',myHue=HUES[Math.random()*8|0],code='',myTr=1,myTrail=[],otrail=new Map();
 let net=null,peer=null,hostConn=null,conns=[],others=new Map(),meSt={},myId='',lostHost=false,raceId=0,raceL=0,lastRace=null,lastStartT=0;
 const r3=v=>Math.round(v*1000)/1000,num=v=>Number.isFinite(+v)?+v:0;
 const hc=(h,l)=>'hsl('+((+h||0)%360)+',75%,'+(l||55)+'%)';
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function cr(p0,p1,p2,p3,t){const t2=t*t,t3=t2*t;return[0,1].map(i=>.5*((2*p1[i])+(-p0[i]+p2[i])*t+(2*p0[i]-5*p1[i]+4*p2[i]-p3[i])*t2+(-p0[i]+3*p1[i]-3*p2[i]+p3[i])*t3))}
+const ballR=()=>Math.max(6,Math.min(11*S+3,halfW*.45));
 function build(){
  const L=LV[lvl];worldH=H*L.k;halfW=L.w*PW;const r=rng(L.seed*131+7);let Q=[];
- if(L.loop){const M=12,ph=r()*6.28;for(let j=0;j<M;j++){const a=-Math.PI/2+6.2832*j/M,f=1+L.amp*(Math.sin(2*a+ph)*.6+(r()-.5)*.8);Q.push([Math.max(.16,Math.min(.84,.5+.37*Math.cos(a)*f)),Math.max(.09,Math.min(.91,.5+.40*Math.sin(a)*f))])}}
+ if(L.loop){const M=L.M,ph=r()*6.28;for(let j=0;j<M;j++){const a=-Math.PI/2+6.2832*j/M,f=1+L.amp*(Math.sin(2*a+ph)*.6+(r()-.5)*.8);Q.push([Math.max(.16,Math.min(.84,.5+.37*Math.cos(a)*f)),Math.max(.09,Math.min(.91,.5+.40*Math.sin(a)*f))])}}
  else{const rows=Math.round(L.k*7);Q.push([.5,.035]);for(let i=0;i<rows;i++)Q.push([(i%2?.8:.2)+(r()-.5)*.14,.09+.82*i/(rows-1)]);Q.push([.5,.965])}
  Q=Q.map(q=>[ox+q[0]*PW,q[1]*worldH]);const n=Q.length,lp=L.loop;path=[];
- for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)];for(let k=0;k<12;k++)path.push(cr(a,b,c,d,k/12))}
+ for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)];const ns=Math.max(8,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/14));for(let k=0;k<ns;k++)path.push(cr(a,b,c,d,k/ns))}
  if(!lp)path.push(Q[n-1]);
  portals=[];const N=path.length;
  for(let j=0;j<L.pc;j++){const idx=Math.floor(N*(.15+.7*(j+.2+.6*r())/L.pc)),back=Math.floor(N*(.07+.05*r())),a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1,sd=j%2?1:-1;
-  portals.push({x:path[idx][0]-ty/l*sd*halfW*.45,y:path[idx][1]+tx/l*sd*halfW*.45,r:halfW*.42,idx,back})}}
+  const br=ballR(),rp=Math.max(halfW*.2,Math.min(halfW*.42,(2*halfW-2*br-5)/2)),of=halfW-rp;portals.push({x:path[idx][0]-ty/l*sd*of,y:path[idx][1]+tx/l*sd*of,r:rp,idx,back})}}
 function resize(){
  let nx,ny;if(ball){nx=(ball.x-ox)/PW;ny=ball.y/worldH}
  dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
  PW=Math.min(W,H*.62);ox=(W-PW)/2;S=PW/400;build();
- if(ball){ball.x=ox+nx*PW;ball.y=ny*worldH;ball.r=11*S+3}}
+ if(ball){ball.x=ox+nx*PW;ball.y=ny*worldH;ball.r=ballR()}}
 function nearest(x,y){let best=1e9,bi=0,bx=0,by=0;const n=path.length,m=LV[lvl].loop?n:n-1;
  for(let i=0;i<m;i++){const[ax,ay]=path[i],[cx,cy]=path[(i+1)%n],dx=cx-ax,dy=cy-ay;let u=((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy||1);u=Math.max(0,Math.min(1,u));
   const px=ax+u*dx,py=ay+u*dy,d=Math.hypot(x-px,y-py);if(d<best){best=d;bi=(i+(u>.5?1:0))%n;bx=px;by=py}}
  return[best,bi,bx,by]}
-function spawn(){const p=path[0];ball={x:p[0],y:p[1],vx:0,vy:0,r:11*S+3};cam=0}
+function spawn(){const p=path[0];ball={x:p[0],y:p[1],vx:0,vy:0,r:ballR()};cam=0}
 const target=()=>LV[lvl].loop?LV[lvl].laps*path.length:path.length-1;
 const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
-function beginRace(l){lvl=l;build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();doneT=0;time=0;spawn();state='count';startAt=performance.now()+3000;
+function beginRace(l){lvl=l;build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();doneT=0;time=0;spawn();state='count';startAt=performance.now()+3000;
  pres({l:lvl,d:0,g:0,pn:0,f:0});show(false)}
 function hostStart(l){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;beginRace(l)}
 function requestRace(l){if(net==='host')hostStart(l);else if(net==='client'&&hostConn&&hostConn.open){[0,120,240].forEach(w=>setTimeout(()=>hostConn.open&&hostConn.send({t:'start',l}),w))}else beginRace(l)}
@@ -71,10 +74,20 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
  if(net&&state==='lobby'){const n=rows().length;$('msg').textContent='Room '+code+': '+n+' player'+(n==1?'':'s')+' here. Friends open this same page and enter the same code. Anyone can press Start.'}
  rows().forEach((r,i)=>{const li=document.createElement('li'),dt=document.createElement('span');dt.className='dot';dt.style.background=hc(r.c);li.appendChild(dt);
   li.appendChild(document.createTextNode((state==='done'?(i+1)+'. ':'')+r.n+(r.me?' (you)':'')+' — '+(r.d>0?r.d.toFixed(1)+'s':state==='lobby'?'ready':Math.round(r.g*100)+'%')));ul.appendChild(li)})}
-function card(h,msg,btn,menu){$('sw').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
+function readLevel(){return Math.max(0,Math.min(NL-1,(parseInt($('lvn').value)||1)-1))}
+function card(h,msg,btn,menu){$('lvp').style.display=state==='lobby'||state==='done'?'block':'none';$('lvn').value=state==='done'?Math.min(NL,lvl+2):lvl+1;$('sw').style.display=$('tr').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
+const TRN=['None','Comet','Rainbow','Sparkle'];
+function trailBtns(){const b=$('tr');b.textContent='';const l=document.createElement('span');l.textContent='Trail effect';b.appendChild(l);
+ TRN.forEach((nm,i)=>{const x=document.createElement('button');x.textContent=nm;x.className=i===myTr?'on':'';x.onclick=()=>{myTr=i;pres({tr:i});trailBtns()};b.appendChild(x)})}
+function pushTrail(a,x,y,nt){const l=a[a.length-1];if(l){const d=Math.hypot(x-l.x,y-l.y);if(d>90)a.length=0;else if(d<2)return}a.push({x,y,t:nt,h:(nt/4)%360,s:Math.random()})}
+function drawTrail(a,mode,hue,r,nt){while(a.length&&nt-a[0].t>650)a.shift();if(!mode)return;
+ for(let i=0;i<a.length;i++){const p=a[i],f=1-(nt-p.t)/650;if(f<=0)continue;
+  if(mode===1)dot(p.x,p.y,r*(.25+.7*f),hc(hue,60),.45*f);
+  else if(mode===2)dot(p.x,p.y,r*(.3+.6*f),'hsl('+(p.h|0)+',90%,60%)',.6*f);
+  else{const o=r*(1.6-f*1.2);dot(p.x+Math.cos(p.s*6.283)*o,p.y+Math.sin(p.s*6.283)*o,2+3*f,i%2?'#fff':hc(hue,70),.9*f)}}}
 function swatches(){const b=$('sw');b.textContent='';HUES.forEach(h=>{const x=document.createElement('button');x.style.background=hc(h);x.className=h===myHue?'on':'';x.onclick=()=>{myHue=h;pres({c:h});swatches();if(ovOn)renderBoard()};b.appendChild(x)})}
 /* ---------- multiplayer (PeerJS): first player to use a code is the host ---------- */
-function clean(s){s=s||{};return{t:performance.now(),q:num(s.q),u:num(s.u),v:num(s.v),n:String(s.n||'').slice(0,12),c:num(s.c),l:num(s.l),x:num(s.x),y:num(s.y),g:num(s.g),pn:num(s.pn),f:s.f?1:0,d:num(s.d)}}
+function clean(s){s=s||{};return{tr:Math.max(0,Math.min(3,num(s.tr)|0)),t:performance.now(),q:num(s.q),u:num(s.u),v:num(s.v),n:String(s.n||'').slice(0,12),c:num(s.c),l:num(s.l),x:num(s.x),y:num(s.y),g:num(s.g),pn:num(s.pn),f:s.f?1:0,d:num(s.d)}}
 function goLobby(h,msg){state='lobby';card(h,msg,'Start race',false)}
 function fail(e){net=null;try{peer&&peer.destroy()}catch(_){}peer=null;goLobby('Solo race','Couldn\'t reach the multiplayer server ('+((e&&e.type)||'timeout')+'). You\'re racing solo.')}
 function hostLost(){if(net!=='client')return;net=null;others=new Map();lostHost=true;if(state==='lobby'||state==='done')card('Host left','The host closed the game, so you\'re solo now. Reload to join again.','Start race',false)}
@@ -100,7 +113,7 @@ function connect(){
   if(e&&e.type==='unavailable-id')joinAsClient(id);else fail(e)})}
 function doJoin(){
  myName=($('nm').value.trim()||'Player').slice(0,12);code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
- meSt={n:myName,c:myHue,l:lvl,x:0,y:0,g:0,pn:0,f:0,d:0,u:0,v:0,q:0};lastRace=null;raceId=0;
+ meSt={tr:myTr,n:myName,c:myHue,l:lvl,x:0,y:0,g:0,pn:0,f:0,d:0,u:0,v:0,q:0};lastRace=null;raceId=0;
  if(!code){goLobby('Solo race','Race the clock!');return}
  if(typeof Peer==='undefined'){goLobby('Solo race','Couldn\'t load the multiplayer library, so you\'re racing solo.');return}
  $('go').disabled=true;$('msg').textContent='Connecting to room '+code+'…';connect()}
@@ -109,7 +122,7 @@ setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
  else{const all={host:meSt};others.forEach((v,k)=>all[k]=v);conns.forEach(c=>c.open&&c.send({t:'all',p:all,r:raceId,l:raceL}))}
  if(ovOn&&++tk%8==0)renderBoard()},33);
 /* ---------- input ---------- */
-$('go').onclick=()=>{if(state==='menu')doJoin();else if(state==='lobby')requestRace(lvl);else if(state==='done')requestRace((lvl+1)%LV.length)};
+$('go').onclick=()=>{if(state==='menu')doJoin();else if(state==='lobby'||state==='done')requestRace(readLevel())};
 addEventListener('pointerdown',e=>{if(!ovOn)drag=[e.clientX,e.clientY]});
 addEventListener('pointermove',e=>{if(drag){tilt.x=Math.max(-1.5,Math.min(1.5,(e.clientX-drag[0])/70));tilt.y=Math.max(-1.5,Math.min(1.5,(e.clientY-drag[1])/70))}});
 addEventListener('pointerup',()=>{drag=null;tilt.x=tilt.y=0});
@@ -135,7 +148,7 @@ function step(){
   if(L.loop?total>=target():Math.hypot(ball.x-e[0],ball.y-e[1])<halfW*.7){state='done';doneT=+((now-t0)/1000).toFixed(2);total=target();pres({d:doneT,g:1,pn:pen});navigator.vibrate&&navigator.vibrate([40,40,40]);
    card('Finished!','Time '+doneT.toFixed(1)+'s with '+pen+' penalt'+(pen==1?'y':'ies')+'.','Next race',false)}}
  if(ball&&(state==='play'||state==='frozen'))time=(now-t0)/1000;
- {const L=LV[lvl];$('lv').textContent=state==='menu'||state==='lobby'?'':L.loop?'Lap '+Math.min(L.laps,Math.max(0,Math.floor(total/path.length))+1)+'/'+L.laps:'Sprint'}
+ {const L=LV[lvl];$('lv').textContent=state==='menu'||state==='lobby'?'':'L'+(lvl+1)+' · '+(L.loop?'Lap '+Math.min(L.laps,Math.max(0,Math.floor(total/path.length))+1)+'/'+L.laps:'Sprint')}
  if(ball&&(state==='count'||state==='play'||state==='frozen'||state==='done'))pres({x:r3((ball.x-ox)/PW),y:r3(ball.y/worldH),g:r3(prog()),pn:pen,f:state==='frozen'?1:0,u:state==='play'?r3(ball.vx*60/PW):0,v:state==='play'?r3(ball.vy*60/worldH):0});
  if(ball){const tg=Math.max(0,Math.min(worldH-H,ball.y-H*.5));cam+=(tg-cam)*.15}
  $('tm').textContent=state==='play'||state==='frozen'?time.toFixed(1)+'s':'';
@@ -162,18 +175,20 @@ function draw(){
   ctx.setLineDash([7,6]);ctx.lineDashOffset=-nt/25;ctx.strokeStyle='#ecd6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,p.r*.78,0,7);ctx.stroke();ctx.setLineDash([])}
  if(net&&ball&&state!=='menu'&&state!=='lobby'){ctx.font='600 12px system-ui';ctx.textAlign='center';
   for(const[id,q]of others){if(!q.n||q.l!==lvl)continue;const sp=samplePos(id,q,nt),x=ox+sp.x*PW,y=sp.y*worldH,col=hc(q.c);
+   let ta=otrail.get(id);if(!ta){ta=[];otrail.set(id,ta)}if(q.tr)pushTrail(ta,x,y,nt);drawTrail(ta,q.tr,q.c,ball.r,nt);
    dot(x,y,ball.r,col,.7);if(q.f){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,ball.r+4,0,7);ctx.stroke()}
    ctx.fillStyle=css('--ink');ctx.fillText(q.n,x,y-ball.r-6)}}
+ if(ball){if(state==='play')pushTrail(myTrail,ball.x,ball.y,nt);drawTrail(myTrail,myTr,myHue,ball.r,nt)}
  if(ball){const r=ball.r,fz=state==='frozen';dot(ball.x+3,ball.y+4,r,'#000',.2);
   const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,fz?'#e0e4ec':hc(myHue,80));gr.addColorStop(1,fz?'#8791a5':hc(myHue,50));
   ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill();
   if(fz){const rem=Math.max(0,frozenUntil-performance.now())/PEN;ctx.strokeStyle='#4aa3ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(ball.x,ball.y,r+7,-Math.PI/2,-Math.PI/2+6.283*rem);ctx.stroke()}}
  ctx.restore();ctx.textAlign='center';ctx.fillStyle=css('--ink');
- if(state==='count'){ctx.font='700 90px system-ui';ctx.fillText(Math.max(1,Math.ceil((startAt-performance.now())/1000)),W/2,H*.3);ctx.font='600 18px system-ui';ctx.fillText(LV[lvl].name+(LV[lvl].loop?' · '+LV[lvl].laps+' laps':''),W/2,H*.3+34)}
+ if(state==='count'){ctx.font='700 90px system-ui';ctx.fillText(Math.max(1,Math.ceil((startAt-performance.now())/1000)),W/2,H*.3);ctx.font='600 18px system-ui';ctx.fillText('Level '+(lvl+1)+' · '+LV[lvl].name+(LV[lvl].loop?' · '+LV[lvl].laps+' laps':''),W/2,H*.3+34)}
  if(performance.now()<msgUntil){ctx.font='700 22px system-ui';ctx.fillStyle='#b36bff';ctx.fillText('Portal! Sent back',W/2,H*.2+(state==='frozen'?32:0))}
  if(state==='frozen'){ctx.font='700 22px system-ui';ctx.fillText('Frozen '+((frozenUntil-performance.now())/1000).toFixed(1)+'s',W/2,H*.2)}}
-swatches();resize();
+swatches();trailBtns();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
-card('Tilt Trail Race v3','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back) and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
+card('Tilt Trail Race v5','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back) and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
 (function loop(){step();draw();requestAnimationFrame(loop)})();
 </script></body></html>
