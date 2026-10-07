@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.1</title>
+<title>TrailBall v1.3</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -28,15 +28,24 @@ canvas{display:block;width:100%;height:100%}
 #sw{margin:0 0 10px}#sw button{width:30px;height:30px;padding:0;margin:3px;border-radius:50%;border:3px solid transparent}#sw button.on{border-color:var(--ink)}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
 .card #go{font:inherit;font-weight:700;font-size:16px;padding:12px 28px;border:0;border-radius:12px;background:var(--ball);color:#fff}.card #go:disabled{opacity:.5}
+.card .mb{display:block;width:100%;box-sizing:border-box;margin:10px 0 0;font:inherit;font-weight:700;font-size:17px;padding:13px;border:0;border-radius:12px;background:var(--ball);color:#fff}
+.card .mb.sec{background:transparent;color:var(--ink);border:2px solid var(--edge)}
+.card .orow{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px;font-weight:600}
+.card .tg{font:inherit;font-size:14px;padding:7px 14px;margin-left:6px;border-radius:14px;border:2px solid var(--edge);background:var(--bg);color:var(--ink)}
+.card .tg.on{border-color:var(--ink);font-weight:700}
+.card .big{font-size:20px;font-weight:600;margin:14px 0 18px;opacity:1}
 .card #inst{display:block;margin:10px auto 0;font:inherit;font-weight:700;font-size:15px;padding:10px 24px;border:2px solid var(--ball);border-radius:12px;background:transparent;color:var(--ball)}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
 <button id="mt">🔊</button>
 <div id="ov"><div class="card"><h1 id="h">TrailBall</h1><p id="msg"></p>
+<div id="home"><button class="mb" id="bPlay">Play</button><button class="mb" id="bOpt">Options</button><button class="mb" id="bCred">Credits</button><button id="inst" style="display:none">Install app</button><p id="ioshint" style="display:none;font-size:12px;margin:10px 0 0">On iPhone: tap the Share button, then Add to Home Screen.</p></div>
+<div id="opts" style="display:none"><div class="orow"><span>Music</span><span><button class="tg" id="mOn">On</button><button class="tg" id="mOff">Off</button></span></div><button class="mb sec" id="bBack1">Back</button></div>
+<div id="cred" style="display:none"><p class="big">created by Ian Lobo</p><button class="mb sec" id="bBack2">Back</button></div>
 <div id="sw"></div><div id="tr"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
 <div id="lvp"><input id="lvn" type="number" min="1" max="100" placeholder="Level (1-100)"></div><ul id="board"></ul><button id="go">Play</button>
-<button id="inst" style="display:none">Install app</button><p id="ioshint" style="display:none;font-size:12px;margin:10px 0 0">On iPhone: tap the Share button, then Add to Home Screen.</p></div></div>
+<button class="mb sec" id="back" style="display:none">Back</button></div></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
 const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
@@ -53,6 +62,10 @@ function cr(p0,p1,p2,p3,t){const d=(a,b)=>Math.max(Math.sqrt(Math.hypot(a[0]-b[0
  return[0,1].map(i=>{const A1=((t1-tt)*p0[i]+tt*p1[i])/t1,A2=((t2-tt)*p1[i]+(tt-t1)*p2[i])/(t2-t1),A3=((t3-tt)*p2[i]+(tt-t2)*p3[i])/(t3-t2),B1=((t2-tt)*A1+tt*A2)/t2,B2=((t3-tt)*A2+(tt-t1)*A3)/(t3-t1);return((t2-tt)*B1+(tt-t1)*B2)/(t2-t1)})}
 const ballR=()=>Math.max(6,Math.min(11*S+3,halfW*.45));
 function freeIdx(t,list,N){for(let d=0;d<=70;d+=6)for(const sg of d?[1,-1]:[1]){const i=Math.max(3,Math.min(N-4,t+d*sg));if(!list.some(p=>Math.abs(p.idx-i)<10))return i}return Math.max(3,Math.min(N-4,t))}
+const HOWTO='Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab blue boost orbs to bounce off the track edges (2 times), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.';
+function place(u,k,N){const taken=portals.concat(pickups,boosts).filter(p=>p!==u&&p.idx>0),idx=k?Math.min(k.idx,N-4):freeIdx(Math.floor(N*(.06+.88*Math.random())),taken,N);
+ u.idx=idx;u.lj=k?k.lj:Math.random()*.7-.35;const a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1;u.x=path[idx][0]-ty/l*u.lj*halfW;u.y=path[idx][1]+tx/l*u.lj*halfW}
+function respawn(u,now,lo,span){u.until=now+lo+Math.random()*span;place(u,null,path.length)}
 function mkPath(Q,lp){const n=Q.length,p=[];for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)],ns=Math.max(8,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/14));for(let k=0;k<ns;k++)p.push(cr(a,b,c,d,k/ns))}if(!lp)p.push(Q[n-1]);return p}
 function minRad(p,lp){const N=p.length,k=Math.max(2,Math.min(6,Math.round(halfW/8)));let m=1e9;for(let i=0;i<N;i+=2){if(!lp&&i+2*k>=N)break;const A=p[i],B=p[(i+k)%N],C=p[(i+2*k)%N],a=Math.hypot(B[0]-C[0],B[1]-C[1]),b=Math.hypot(A[0]-C[0],A[1]-C[1]),c=Math.hypot(A[0]-B[0],A[1]-B[1]),ar=Math.abs((B[0]-A[0])*(C[1]-A[1])-(C[0]-A[0])*(B[1]-A[1]))/2;if(ar>1){const R=a*b*c/(4*ar);if(R<m)m=R}}return m}
 function zig(p,offs,Z,lam){const N=p.length,cum=[0];for(let i=1;i<N;i++)cum.push(cum[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));const Lt=cum[N-1],zl=3*lam,ramp=.6*lam,out=[];
@@ -76,11 +89,11 @@ function build(){
  trackPath=new Path2D();path.forEach((p,i)=>i?trackPath.lineTo(p[0],p[1]):trackPath.moveTo(p[0],p[1]));if(lp)trackPath.closePath();
  const N=path.length,Lpx=N*13,pc=Math.max(3,Math.round(Lpx/(1000-300*L.t)));portals=[];
  for(let j=0;j<pc;j++){const idx=Math.floor(N*(.15+.7*(j+.2+.6*r())/pc)),back=Math.min(Math.floor(N*(.07+.05*r())),55+Math.floor(r()*35)),a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1,sd=j%2?1:-1;
-  const br=ballR(),rp=Math.max(halfW*.2,Math.min(halfW*.42,(2*halfW-2*br-5)/2)),of=halfW-rp;portals.push({x:path[idx][0]-ty/l*sd*of,y:path[idx][1]+tx/l*sd*of,r:rp,idx,back})}
- pickups=[];const pk=Math.max(3,Math.round(Lpx/1400));
- for(let j=0;j<pk;j++){const idx=freeIdx(Math.floor(N*(.1+.8*(j+.5)/pk)),portals,N);pickups.push({x:path[idx][0],y:path[idx][1],r:Math.max(8,halfW*.42),idx,until:0})}
- boosts=[];const bn=Math.max(2,Math.round(Lpx/2200));
- for(let j=0;j<bn;j++){const idx=freeIdx(Math.floor(N*(.12+.76*(j+.5)/bn)),portals.concat(pickups,boosts),N);boosts.push({x:path[idx][0],y:path[idx][1],r:Math.max(8,halfW*.42),idx,until:0})}}
+  const br=ballR(),rp=Math.max(halfW*.2,Math.min(halfW*.42,(2*halfW-2*br-5)/2)),of=halfW-rp;portals.push({cx:path[idx][0],cy:path[idx][1],nx:-ty/l,ny:tx/l,A:Math.max(0,halfW-rp),T:2.2+1.4*r(),ph:r()*6.2832,x:path[idx][0]-ty/l*sd*of,y:path[idx][1]+tx/l*sd*of,r:rp,idx,back})}
+ const pk=Math.max(3,Math.round(Lpx/1400)),bn=Math.max(2,Math.round(Lpx/2200)),ur=Math.max(8,halfW*.42),op=pickups.map(u=>({idx:u.idx,lj:u.lj,until:u.until})),ob=boosts.map(u=>({idx:u.idx,lj:u.lj,until:u.until}));
+ pickups=[];boosts=[];
+ for(let j=0;j<pk;j++){const u={r:ur,until:0,idx:0,x:0,y:0};pickups.push(u);const k=op.length===pk?op[j]:null;place(u,k,N);if(k)u.until=k.until}
+ for(let j=0;j<bn;j++){const u={r:ur,until:0,idx:0,x:0,y:0};boosts.push(u);const k=ob.length===bn?ob[j]:null;place(u,k,N);if(k)u.until=k.until}}
 function resize(){
  let nx,ny;if(ball){nx=ball.x/WW;ny=ball.y/worldH}
  dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -94,7 +107,7 @@ function spawn(){const p=path[0],a=path[1],b=LV[lvl].loop?path[path.length-1]:p,
 const target=()=>LV[lvl].loop?LV[lvl].laps*path.length:path.length-1;
 const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
-function beginRace(l){lvl=l;build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounce=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;spawn();state='count';startAt=performance.now()+3000;
+function beginRace(l){lvl=l;pickups=[];boosts=[];build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounce=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;spawn();state='count';startAt=performance.now()+3000;
  pres({l:lvl,d:0,g:0,pn:0,f:0});show(false)}
 function hostStart(l){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;beginRace(l)}
 function requestRace(l){if(net==='host')hostStart(l);else if(net==='client'&&hostConn&&hostConn.open){[0,120,240].forEach(w=>setTimeout(()=>hostConn.open&&hostConn.send({t:'start',l}),w))}else beginRace(l)}
@@ -108,18 +121,27 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
  if(net&&state==='lobby'){const n=rows().length;$('msg').textContent='Room '+code+': '+n+' player'+(n==1?'':'s')+' here. Friends open this same page and enter the same code. Anyone can press Start.'}
  rows().forEach((r,i)=>{const li=document.createElement('li'),dt=document.createElement('span');dt.className='dot';dt.style.background=hc(r.c);li.appendChild(dt);
   li.appendChild(document.createTextNode((state==='done'?(i+1)+'. ':'')+r.n+(r.me?' (you)':'')+' — '+(r.d>0?r.d.toFixed(1)+'s':state==='lobby'?'ready':Math.round(r.g*100)+'%')));ul.appendChild(li)})}
+let musicOn=true;
+const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
+function pane(v,h,msg){state='menu';['home','opts','cred'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
+const showHome=()=>pane('home','TrailBall','v1.3');
+function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
+function setMusic(v){musicOn=v;sv('music',v?'1':'0');optsUI();if(v){aud();startMusic()}}
+const showOpts=()=>{pane('opts','Options','');optsUI()};
+const showCred=()=>pane('cred','Credits','');
+function showSetup(){state='menu';card('Get ready',HOWTO,'Play',true)}
 function readLevel(){return Math.max(0,Math.min(NL-1,(parseInt($('lvn').value)||1)-1))}
-function card(h,msg,btn,menu){$('lvp').style.display=state==='lobby'||state==='done'?'block':'none';$('lvn').value=state==='done'?Math.min(NL,lvl+2):lvl+1;$('sw').style.display=$('tr').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
+function card(h,msg,btn,menu){$('home').style.display=$('opts').style.display=$('cred').style.display='none';$('go').style.display='';$('back').style.display=menu?'block':'none';$('lvp').style.display=state==='lobby'||state==='done'?'block':'none';$('lvn').value=state==='done'?Math.min(NL,lvl+2):lvl+1;$('sw').style.display=$('tr').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
 const TRN=['None','Comet','Rainbow','Sparkle'];
 function trailBtns(){const b=$('tr');b.textContent='';const l=document.createElement('span');l.textContent='Trail effect';b.appendChild(l);
- TRN.forEach((nm,i)=>{const x=document.createElement('button');x.textContent=nm;x.className=i===myTr?'on':'';x.onclick=()=>{myTr=i;pres({tr:i});trailBtns()};b.appendChild(x)})}
+ TRN.forEach((nm,i)=>{const x=document.createElement('button');x.textContent=nm;x.className=i===myTr?'on':'';x.onclick=()=>{myTr=i;sv('tr',i);pres({tr:i});trailBtns()};b.appendChild(x)})}
 function pushTrail(a,x,y,nt){const l=a[a.length-1];if(l){const d=Math.hypot(x-l.x,y-l.y);if(d>90)a.length=0;else if(d<2)return}a.push({x,y,t:nt,h:(nt/4)%360,s:Math.random()})}
 function drawTrail(a,mode,hue,r,nt){while(a.length&&nt-a[0].t>650)a.shift();if(!mode)return;
  for(let i=0;i<a.length;i++){const p=a[i],f=1-(nt-p.t)/650;if(f<=0)continue;
   if(mode===1)dot(p.x,p.y,r*(.25+.7*f),hc(hue,60),.45*f);
   else if(mode===2)dot(p.x,p.y,r*(.3+.6*f),'hsl('+(p.h|0)+',90%,60%)',.6*f);
   else{const o=r*(1.6-f*1.2);dot(p.x+Math.cos(p.s*6.283)*o,p.y+Math.sin(p.s*6.283)*o,2+3*f,i%2?'#fff':hc(hue,70),.9*f)}}}
-function swatches(){const b=$('sw');b.textContent='';HUES.forEach(h=>{const x=document.createElement('button');x.style.background=hc(h);x.className=h===myHue?'on':'';x.onclick=()=>{myHue=h;pres({c:h});swatches();if(ovOn)renderBoard()};b.appendChild(x)})}
+function swatches(){const b=$('sw');b.textContent='';HUES.forEach(h=>{const x=document.createElement('button');x.style.background=hc(h);x.className=h===myHue?'on':'';x.onclick=()=>{myHue=h;sv('hue',h);pres({c:h});swatches();if(ovOn)renderBoard()};b.appendChild(x)})}
 /* ---------- multiplayer (PeerJS): first player to use a code is the host ---------- */
 function clean(s){s=s||{};return{bo:num(s.bo),bi:num(s.bi),bx:num(s.bx),by:num(s.by),ba:num(s.ba),bs:num(s.bs)<0?-1:1,pu:s.pu?1:0,tr:Math.max(0,Math.min(3,num(s.tr)|0)),t:performance.now(),q:num(s.q),u:num(s.u),v:num(s.v),n:String(s.n||'').slice(0,12),c:num(s.c),l:num(s.l),x:num(s.x),y:num(s.y),g:num(s.g),pn:num(s.pn),f:s.f?1:0,d:num(s.d)}}
 function goLobby(h,msg){state='lobby';card(h,msg,'Start race',false)}
@@ -146,7 +168,7 @@ function connect(){
  hp.on('error',e=>{if(settled)return;settled=true;clearTimeout(to);try{hp.destroy()}catch(_){}
   if(e&&e.type==='unavailable-id')joinAsClient(id);else fail(e)})}
 function doJoin(){
- myName=($('nm').value.trim()||'Player').slice(0,12);code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+ myName=($('nm').value.trim()||'Player').slice(0,12);sv('name',myName);code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
  meSt={bo:0,pu:0,tr:myTr,n:myName,c:myHue,l:lvl,x:0,y:0,g:0,pn:0,f:0,d:0,u:0,v:0,q:0};lastRace=null;raceId=0;
  if(!code){goLobby('Solo race','Race the clock!');return}
  if(typeof Peer==='undefined'){goLobby('Solo race','Couldn\'t load the multiplayer library, so you\'re racing solo.');return}
@@ -157,7 +179,8 @@ setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
  if(ovOn&&++tk%8==0)renderBoard()},33);
 /* ---------- input ---------- */
 $('go').onclick=()=>{aud();startMusic();try{const de=document.documentElement;if(de.requestFullscreen&&!document.fullscreenElement)de.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}if(state==='menu')doJoin();else if(state==='lobby'||state==='done')requestRace(readLevel())};
-addEventListener('pointerdown',e=>{aud();if(!ovOn&&e.target.id!=='mt')drag=[e.clientX,e.clientY]});
+addEventListener('pointerdown',e=>{aud();startMusic();if(!ovOn&&e.target.id!=='mt')drag=[e.clientX,e.clientY]});
+$('bPlay').onclick=showSetup;$('bOpt').onclick=showOpts;$('bCred').onclick=showCred;$('bBack1').onclick=$('bBack2').onclick=$('back').onclick=showHome;$('mOn').onclick=()=>setMusic(true);$('mOff').onclick=()=>setMusic(false);
 $('mt').onclick=()=>{mute=!mute;$('mt').textContent=mute?'🔇':'🔊';if(!mute){aud();startMusic()}};
 addEventListener('pointermove',e=>{if(drag){tilt.x=Math.max(-1.5,Math.min(1.5,(e.clientX-drag[0])/70));tilt.y=Math.max(-1.5,Math.min(1.5,(e.clientY-drag[1])/70))}});
 addEventListener('pointerup',()=>{drag=null;tilt.x=tilt.y=0});
@@ -181,13 +204,14 @@ function mstep(st,t){const bar=st>>4,s=st&15,m=LEAD[bar][s];
  if(s%4===0){const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(160,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.24,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(mg);o.start(t);o.stop(t+.16)}
  if(s===4||s===12)mnoise(t,.1,.12,1200);
  if(s%4===2)mnoise(t,.03,.05,6000)}
-function musTick(){if(mute||!ac||ac.state!=='running')return;if(!musNext||musNext<ac.currentTime-.5)musNext=ac.currentTime+.05;
+function musTick(){if(mute||!musicOn||!ac||ac.state!=='running')return;if(!musNext||musNext<ac.currentTime-.5)musNext=ac.currentTime+.05;
  while(musNext<ac.currentTime+.25){mstep(musStep,musNext);musNext+=SC16;musStep=(musStep+1)%64}}
 function startMusic(){if(mus||!aud())return;try{mg=ac.createGain();mg.gain.value=.5;mg.connect(ac.destination);const n=Math.floor(ac.sampleRate*.3);nbuf=ac.createBuffer(1,n,ac.sampleRate);const d=nbuf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;mus=setInterval(musTick,60)}catch(e){mus=null}}
 document.addEventListener('visibilitychange',()=>{if(!ac)return;try{document.hidden?ac.suspend():(!mute&&ac.resume())}catch(e){}});
 /* ---------- game loop ---------- */
 function step(){
  const now=performance.now();frame++;
+ {const pt=(now-startAt)/1000;for(const p of portals){const l=p.A*Math.sin(6.2832*pt/p.T+p.ph);p.x=p.cx+p.nx*l;p.y=p.cy+p.ny*l}}
  if(!drag){tilt.x=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);tilt.y=(keys.ArrowDown?1:0)-(keys.ArrowUp?1:0)}
  if(state==='count'&&now>=startAt){state='play';t0=now}
  if(state==='frozen'&&now>=frozenUntil)state='play';
@@ -209,9 +233,9 @@ function step(){
    if(sp2>1.5*S&&(ball.vx*tx+ball.vy*ty)/(sp2*tl)<-.4){if(!wrongSince)wrongSince=now}else wrongSince=0;
    wrong=!!wrongSince&&now-wrongSince>350}
   if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.55){const tg=Math.max(0,p.idx-p.back);ball.x=path[tg][0];ball.y=path[tg][1];ball.vx=ball.vy=0;lastIdx=tg;total-=p.back;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
-  for(const u of pickups)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){u.until=now+9000;if(!charge){charge=true;chFrom={x:ball.x,y:ball.y}}puSfx();navigator.vibrate&&navigator.vibrate(40)}
+  for(const u of pickups)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){respawn(u,now,5000,6000);if(!charge){charge=true;chFrom={x:ball.x,y:ball.y}}puSfx();navigator.vibrate&&navigator.vibrate(40)}
   if(charge&&Math.hypot(ball.x-chFrom.x,ball.y-chFrom.y)>=Math.max(90,halfW*2.5)){charge=false;const sd=Math.random()<.5?1:-1,ang=Math.atan2(ball.ty,ball.tx);mkBar(px,py,ang,sd,true,now);tone(260,120,.12,'triangle',.14);pres({bi:++myBi,bx:r3(px/WW),by:r3(py/worldH),ba:r3(ang),bs:sd})}
-  for(const u of boosts)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){u.until=now+12000;bounce=2;bounceFlash=now;boostSfx();navigator.vibrate&&navigator.vibrate(40)}
+  for(const u of boosts)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){respawn(u,now,7000,6000);bounce=2;bounceFlash=now;boostSfx();navigator.vibrate&&navigator.vibrate(40)}
   if(d>halfW+(pushed?ball.r*.9:ball.r*.2)){if(bounce>0){const nx=(ball.x-px)/(d||1),ny=(ball.y-py)/(d||1),vn=ball.vx*nx+ball.vy*ny;if(vn>0){ball.vx-=2*vn*nx;ball.vy-=2*vn*ny}ball.vx*=.9;ball.vy*=.9;const k2=halfW*.8/(d||1);ball.x=px+(ball.x-px)*k2;ball.y=py+(ball.y-py)*k2;bounce--;bounceFlash=now;bounceSfx();navigator.vibrate&&navigator.vibrate(40)}
   else{const k=halfW*.92/(d||1);ball.x=px+(ball.x-px)*k;ball.y=py+(ball.y-py)*k;ball.vx=ball.vy=0;pen++;state='frozen';frozenUntil=now+PEN;navigator.vibrate&&navigator.vibrate(120)}}
   const e=path[path.length-1];
@@ -285,9 +309,10 @@ function draw(){
  if(state==='count'){ctx.font='700 90px system-ui';ctx.fillText(Math.max(1,Math.ceil((startAt-performance.now())/1000)),W/2,H*.3);ctx.font='600 18px system-ui';ctx.fillText('Level '+(lvl+1)+' · '+LV[lvl].name+(LV[lvl].loop?' · '+LV[lvl].laps+' laps':''),W/2,H*.3+34)}
  if(performance.now()<msgUntil){ctx.font='700 22px system-ui';ctx.fillStyle='#b36bff';ctx.fillText('Portal! Sent back',W/2,H*.2+(state==='frozen'?32:0))}
  if(state==='frozen'){ctx.font='700 22px system-ui';ctx.fillText('Frozen '+((frozenUntil-performance.now())/1000).toFixed(1)+'s',W/2,H*.2)}}
+{const h=+ld('hue'),t=ld('tr'),nm=ld('name');if(HUES.includes(h))myHue=h;if(t!==null&&+t>=0&&+t<=3)myTr=+t;if(nm)$('nm').value=nm;musicOn=ld('music')!=='0'}
 swatches();trailBtns();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
-card('TrailBall v1.1','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab blue boost orbs to bounce off the track edges (2 times), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
+showHome();
 (function loop(){step();draw();requestAnimationFrame(loop)})();
 let dip=null;const standalone=matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches||navigator.standalone;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(!standalone)$('inst').style.display='block'});
