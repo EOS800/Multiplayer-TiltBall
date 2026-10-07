@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tilt Trail Race v8</title>
+<title>TrailBall v1.0</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -24,7 +24,7 @@ canvas{display:block;width:100%;height:100%}
 <canvas id="c"></canvas>
 <div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
 <button id="mt">🔊</button>
-<div id="ov"><div class="card"><h1 id="h">Tilt Trail Race</h1><p id="msg"></p>
+<div id="ov"><div class="card"><h1 id="h">TrailBall</h1><p id="msg"></p>
 <div id="sw"></div><div id="tr"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
 <div id="lvp"><input id="lvn" type="number" min="1" max="100" placeholder="Level (1-100)"></div><ul id="board"></ul><button id="go">Play</button></div></div>
 <script>
@@ -242,6 +242,6 @@ function draw(){
  if(state==='frozen'){ctx.font='700 22px system-ui';ctx.fillText('Frozen '+((frozenUntil-performance.now())/1000).toFixed(1)+'s',W/2,H*.2)}}
 swatches();trailBtns();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
-card('Tilt Trail Race v8','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
+card('TrailBall v1.0','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
 (function loop(){step();draw();requestAnimationFrame(loop)})();
 </script></body></html>
