@@ -2,12 +2,20 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TrailBall v1.0</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#18202f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TrailBall">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}}
 :root[data-theme="dark"]{--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}
-html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block;width:100%;height:100%}
 #hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);display:flex;justify-content:space-between;padding:10px 14px;font-weight:600;font-size:14px;pointer-events:none;text-shadow:0 0 6px var(--bg),0 0 6px var(--bg)}
 #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0006;padding:16px}
@@ -135,7 +143,7 @@ setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
  else{const all={host:meSt};others.forEach((v,k)=>all[k]=v);conns.forEach(c=>c.open&&c.send({t:'all',p:all,r:raceId,l:raceL}))}
  if(ovOn&&++tk%8==0)renderBoard()},33);
 /* ---------- input ---------- */
-$('go').onclick=()=>{aud();if(state==='menu')doJoin();else if(state==='lobby'||state==='done')requestRace(readLevel())};
+$('go').onclick=()=>{aud();try{const de=document.documentElement;if(de.requestFullscreen&&!document.fullscreenElement)de.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}if(state==='menu')doJoin();else if(state==='lobby'||state==='done')requestRace(readLevel())};
 addEventListener('pointerdown',e=>{aud();if(!ovOn&&e.target.id!=='mt')drag=[e.clientX,e.clientY]});
 $('mt').onclick=()=>{mute=!mute;$('mt').textContent=mute?'🔇':'🔊';if(!mute)aud()};
 addEventListener('pointermove',e=>{if(drag){tilt.x=Math.max(-1.5,Math.min(1.5,(e.clientX-drag[0])/70));tilt.y=Math.max(-1.5,Math.min(1.5,(e.clientY-drag[1])/70))}});
@@ -244,4 +252,5 @@ swatches();trailBtns();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
 card('TrailBall v1.0','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
 (function loop(){step();draw();requestAnimationFrame(loop)})();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script></body></html>
