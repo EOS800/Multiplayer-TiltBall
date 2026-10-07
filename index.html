@@ -49,21 +49,29 @@ let net=null,peer=null,hostConn=null,conns=[],others=new Map(),meSt={},myId='',l
 const r3=v=>Math.round(v*1000)/1000,num=v=>Number.isFinite(+v)?+v:0;
 const hc=(h,l)=>'hsl('+((+h||0)%360)+',75%,'+(l||55)+'%)';
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function cr(p0,p1,p2,p3,t){const t2=t*t,t3=t2*t;return[0,1].map(i=>.5*((2*p1[i])+(-p0[i]+p2[i])*t+(2*p0[i]-5*p1[i]+4*p2[i]-p3[i])*t2+(-p0[i]+3*p1[i]-3*p2[i]+p3[i])*t3))}
+function cr(p0,p1,p2,p3,t){const d=(a,b)=>Math.max(Math.sqrt(Math.hypot(a[0]-b[0],a[1]-b[1])),1e-4),t1=d(p0,p1),t2=t1+d(p1,p2),t3=t2+d(p2,p3),tt=t1+(t2-t1)*t;
+ return[0,1].map(i=>{const A1=((t1-tt)*p0[i]+tt*p1[i])/t1,A2=((t2-tt)*p1[i]+(tt-t1)*p2[i])/(t2-t1),A3=((t3-tt)*p2[i]+(tt-t2)*p3[i])/(t3-t2),B1=((t2-tt)*A1+tt*A2)/t2,B2=((t3-tt)*A2+(tt-t1)*A3)/(t3-t1);return((t2-tt)*B1+(tt-t1)*B2)/(t2-t1)})}
 const ballR=()=>Math.max(6,Math.min(11*S+3,halfW*.45));
 function mkPath(Q,lp){const n=Q.length,p=[];for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)],ns=Math.max(8,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/14));for(let k=0;k<ns;k++)p.push(cr(a,b,c,d,k/ns))}if(!lp)p.push(Q[n-1]);return p}
-function minRad(p,lp){const N=p.length;let m=1e9;for(let i=0;i<N;i+=2){if(!lp&&i+12>=N)break;const A=p[i],B=p[(i+6)%N],C=p[(i+12)%N],a=Math.hypot(B[0]-C[0],B[1]-C[1]),b=Math.hypot(A[0]-C[0],A[1]-C[1]),c=Math.hypot(A[0]-B[0],A[1]-B[1]),ar=Math.abs((B[0]-A[0])*(C[1]-A[1])-(C[0]-A[0])*(B[1]-A[1]))/2;if(ar>1){const R=a*b*c/(4*ar);if(R<m)m=R}}return m}
+function minRad(p,lp){const N=p.length,k=Math.max(2,Math.min(6,Math.round(halfW/8)));let m=1e9;for(let i=0;i<N;i+=2){if(!lp&&i+2*k>=N)break;const A=p[i],B=p[(i+k)%N],C=p[(i+2*k)%N],a=Math.hypot(B[0]-C[0],B[1]-C[1]),b=Math.hypot(A[0]-C[0],A[1]-C[1]),c=Math.hypot(A[0]-B[0],A[1]-B[1]),ar=Math.abs((B[0]-A[0])*(C[1]-A[1])-(C[0]-A[0])*(B[1]-A[1]))/2;if(ar>1){const R=a*b*c/(4*ar);if(R<m)m=R}}return m}
+function zig(p,offs,Z,lam){const N=p.length,cum=[0];for(let i=1;i<N;i++)cum.push(cum[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));const Lt=cum[N-1],zl=3*lam,ramp=.6*lam,out=[];
+ for(let i=0;i<N;i++){const s=cum[i];let off=0;for(const o of offs){const u=s-(Lt*(.08+.84*o)-zl/2);if(u>0&&u<zl){const env=Math.min(1,u/ramp,(zl-u)/ramp),e=env*env*(3-2*env),x=6.2832*u/lam;off+=Z*e*.8106*(Math.sin(x)-Math.sin(3*x)/9)}}
+  const a=p[(i+1)%N],b=p[(i-1+N)%N],tx=a[0]-b[0],ty=a[1]-b[1],tl=Math.hypot(tx,ty)||1;out.push([Math.max(halfW+3,Math.min(WW-halfW-3,p[i][0]-ty/tl*off)),Math.max(halfW+3,Math.min(worldH-halfW-3,p[i][1]+tx/tl*off))])}return out}
 function build(){
  const L=LV[lvl],lp=!!L.loop;worldH=H*L.ky;WW=Math.max(W*1.8,PW*L.kx);halfW=L.w*PW;const r=rng(L.seed*131+7);
- if(lp){const ks=[3,4,6,8,10,13,16].slice(0,4+Math.round(3*L.t)),ph=ks.map(()=>r()*6.28),M=Math.max(48,ks[ks.length-1]*8);let sc=1;
-  for(let it=0;it<9;it++){const Q=[];for(let j=0;j<M;j++){const a=-Math.PI/2+6.2832*j/M;let f=0;ks.forEach((k,q)=>f+=Math.sin(k*a+ph[q])/Math.sqrt(k));f*=L.amp*sc;
+ if(lp){const ks=[3,4,6,8,10,13,16].slice(0,4+Math.round(3*L.t)),ph=ks.map(()=>r()*6.28),M=Math.max(48,ks[ks.length-1]*8),lam=10*halfW,zc=Math.round(3+8*L.t),offs=[];
+  for(let k=0;k<zc;k++)offs.push((k+.5+(r()-.5)*.4)/zc);let sc=1,zs=1;
+  for(let it=0;it<10;it++){const Q=[];for(let j=0;j<M;j++){const a=-Math.PI/2+6.2832*j/M;let f=0;ks.forEach((k,q)=>f+=Math.sin(k*a+ph[q])/Math.sqrt(k));f*=L.amp*sc;
     Q.push([Math.max(.08,Math.min(.92,.5+.4*Math.cos(a)*(1+f)))*WW,Math.max(.05,Math.min(.95,.5+.43*Math.sin(a)*(1+f*.3)))*worldH])}
-   path=mkPath(Q,true);if(minRad(path,true)>=halfW*.9)break;sc*=.8}}
- else{const gap=Math.max(120,5.2*halfW,.22*.76*WW),rows=Math.max(6,Math.floor(worldH*.82/gap)),gA=.88*worldH/(rows-1),Rc=.3*gA,dev=Math.max(0,Math.min(.2*gA,(.6*gA-2*halfW-16)/2.2)),wig=2+(L.t>.5?1:0),ys=i=>(.06+.88*i/(rows-1))*worldH,Q=[[.5*WW,ys(0)-Rc]];let pcx=0;
-  for(let i=0;i<rows;i++){const dir=i%2?1:-1,xe=((i%2?.88:.12)+(r()-.5)*.1)*WW,cx=xe-dir*Rc,y=ys(i);
-   if(i>0){const A=[pcx,ys(i-1)+Rc],B=[cx,y-Rc];for(let w=1;w<=wig;w++){const u=w/(wig+1);Q.push([A[0]+(B[0]-A[0])*u,A[1]+(B[1]-A[1])*u+(w%2?1:-1)*(.4+.6*r())*dev])}}
-   Q.push([cx,y-Rc],[cx+dir*.7071*Rc,y-.7071*Rc],[cx+dir*Rc,y],[cx+dir*.7071*Rc,y+.7071*Rc],[cx,y+Rc]);pcx=cx}
-  Q.push([.5*WW,ys(rows-1)+Rc]);path=mkPath(Q,false)}
+   path=zig(mkPath(Q,true),offs,2*halfW*zs,lam);if(minRad(path,true)>=halfW*.9)break;sc*=.85;zs*=.85}}
+ else{const gap=Math.max(120,5.2*halfW,.22*.76*WW),rows=Math.max(6,Math.floor(worldH*.82/gap)),gA=.88*worldH/(rows-1),Rc=.3*gA,legLen=Math.max(60,.76*WW-2*Rc),wig=Math.max(2,Math.min(12,Math.floor(legLen/(4.5*halfW)))),
+   devS=Math.max(0,Math.min(.2*gA,(.6*gA-2*halfW-16)/2.2)),lam=2*legLen/(wig+1),ys=i=>(.06+.88*i/(rows-1))*worldH,xe=[];let dev=Math.min(devS,lam*lam/(39.5*halfW*.95));
+  for(let i=0;i<rows;i++)xe.push(((i%2?.88:.12)+(r()-.5)*.1)*WW);
+  for(let it=0;it<8;it++){const rr=rng(L.seed*77+3),Q=[[.5*WW,ys(0)-Rc]];let pcx=0;
+   for(let i=0;i<rows;i++){const dir=i%2?1:-1,cx=xe[i]-dir*Rc,y=ys(i);
+    if(i>0){const A=[pcx,ys(i-1)+Rc],B=[cx,y-Rc];for(let w=1;w<=wig;w++){const u=w/(wig+1);Q.push([A[0]+(B[0]-A[0])*u,A[1]+(B[1]-A[1])*u+(w%2?1:-1)*(.5+.5*rr())*dev])}}
+    Q.push([cx,y-Rc],[cx+dir*.7071*Rc,y-.7071*Rc],[cx+dir*Rc,y],[cx+dir*.7071*Rc,y+.7071*Rc],[cx,y+Rc]);pcx=cx}
+   Q.push([.5*WW,ys(rows-1)+Rc]);path=mkPath(Q,false);if(minRad(path,false)>=halfW*.9)break;dev*=.8}}
  trackPath=new Path2D();path.forEach((p,i)=>i?trackPath.lineTo(p[0],p[1]):trackPath.moveTo(p[0],p[1]));if(lp)trackPath.closePath();
  const N=path.length,Lpx=N*13,pc=Math.max(3,Math.round(Lpx/(1000-300*L.t)));portals=[];
  for(let j=0;j<pc;j++){const idx=Math.floor(N*(.15+.7*(j+.2+.6*r())/pc)),back=Math.min(Math.floor(N*(.07+.05*r())),55+Math.floor(r()*35)),a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1,sd=j%2?1:-1;
