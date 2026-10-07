@@ -28,13 +28,15 @@ canvas{display:block;width:100%;height:100%}
 #sw{margin:0 0 10px}#sw button{width:30px;height:30px;padding:0;margin:3px;border-radius:50%;border:3px solid transparent}#sw button.on{border-color:var(--ink)}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
 .card #go{font:inherit;font-weight:700;font-size:16px;padding:12px 28px;border:0;border-radius:12px;background:var(--ball);color:#fff}.card #go:disabled{opacity:.5}
+.card #inst{display:block;margin:10px auto 0;font:inherit;font-weight:700;font-size:15px;padding:10px 24px;border:2px solid var(--ball);border-radius:12px;background:transparent;color:var(--ball)}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
 <button id="mt">🔊</button>
 <div id="ov"><div class="card"><h1 id="h">TrailBall</h1><p id="msg"></p>
 <div id="sw"></div><div id="tr"></div><div id="inp"><input id="nm" maxlength="12" placeholder="Your name" autocomplete="off"><input id="rm" maxlength="20" placeholder="Room code (blank = solo)" autocomplete="off"></div>
-<div id="lvp"><input id="lvn" type="number" min="1" max="100" placeholder="Level (1-100)"></div><ul id="board"></ul><button id="go">Play</button></div></div>
+<div id="lvp"><input id="lvn" type="number" min="1" max="100" placeholder="Level (1-100)"></div><ul id="board"></ul><button id="go">Play</button>
+<button id="inst" style="display:none">Install app</button><p id="ioshint" style="display:none;font-size:12px;margin:10px 0 0">On iPhone: tap the Share button, then Add to Home Screen.</p></div></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
 const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
@@ -252,5 +254,10 @@ swatches();trailBtns();resize();
 try{const q=new URLSearchParams(location.search).get('room');if(q)$('rm').value=q}catch(_){}
 card('TrailBall v1.0','Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they send you back), grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.','Play',true);
 (function loop(){step();draw();requestAnimationFrame(loop)})();
+let dip=null;const standalone=matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches||navigator.standalone;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(!standalone)$('inst').style.display='block'});
+addEventListener('appinstalled',()=>{dip=null;$('inst').style.display='none'});
+$('inst').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('inst').style.display='none'};
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone)$('ioshint').style.display='block';
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script></body></html>
