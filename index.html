@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.7</title>
+<title>TrailBall v1.8</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -24,6 +24,7 @@ canvas{display:block;width:100%;height:100%}
 .card input{display:block;box-sizing:border-box;width:100%;margin:0 0 8px;padding:10px;font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--ink);user-select:text;-webkit-user-select:text}
 .card ul{list-style:none;margin:0 0 12px;padding:0;text-align:left;font-size:14px}.card li{padding:5px 8px;border-bottom:1px solid var(--edge)}
 #tr{margin:0 0 10px;font-size:13px}#tr span{display:block;opacity:.7;margin-bottom:2px}#tr button{font:inherit;font-size:13px;padding:5px 10px;margin:2px;border-radius:14px;border:2px solid var(--edge);background:var(--bg);color:var(--ink)}#tr button.on{border-color:var(--ink);font-weight:700}
+#mn{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:42px;height:42px;border-radius:50%;border:2px solid var(--edge);background:var(--card);color:var(--ink);font-size:20px;padding:0;z-index:2;display:none}
 #mt{position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:42px;height:42px;border-radius:50%;border:2px solid var(--edge);background:var(--card);font-size:18px;padding:0;z-index:2}
 #sw{margin:0 0 10px}#sw button{width:30px;height:30px;padding:0;margin:3px;border-radius:50%;border:3px solid transparent}#sw button.on{border-color:var(--ink)}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
@@ -39,8 +40,10 @@ canvas{display:block;width:100%;height:100%}
 <canvas id="c"></canvas>
 <div id="hud"><span id="lv"></span><span id="tm"></span><span id="ps"></span></div>
 <button id="mt">🔊</button>
+<button id="mn" aria-label="Menu">☰</button>
 <div id="ov"><div class="card"><h1 id="h">TrailBall</h1><p id="msg"></p>
 <div id="home"><button class="mb" id="bPlay">Play</button><button class="mb" id="bOpt">Options</button><button class="mb" id="bCred">Credits</button><button id="inst" style="display:none">Install app</button><p id="ioshint" style="display:none;font-size:12px;margin:10px 0 0">On iPhone: tap the Share button, then Add to Home Screen.</p></div>
+<div id="pmenu" style="display:none"><button class="mb" id="bResume">Resume</button><button class="mb" id="bPOpt">Options</button><button class="mb" id="bPCred">Credits</button><button class="mb sec" id="bPMain">Main menu</button></div>
 <div id="opts" style="display:none"><div class="orow"><span>Music</span><span><button class="tg" id="mOn">On</button><button class="tg" id="mOff">Off</button></span></div><button class="mb sec" id="bBack1">Back</button></div>
 <div id="modes" style="display:none"><button class="mb" id="bRace">Race</button><button class="mb" id="bRumble">Rumble</button><button class="mb sec" id="bBack3">Back</button></div>
 <div id="cred" style="display:none"><p class="big">created by Ian Lobo</p><button class="mb sec" id="bBack2">Back</button></div>
@@ -125,7 +128,7 @@ function beginRace(l,m){if(m)mode=m==='rumble'?'rumble':'race';lvl=mode==='rumbl
  pres({l:lkey,d:0,g:0,pn:0,f:0,k:0,al:1});show(false)}
 function hostStart(l,m){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;raceM=m||mode;beginRace(l,raceM)}
 function requestRace(l){const m=mode;if(net==='host')hostStart(l,m);else if(net==='client'&&hostConn&&hostConn.open){[0,120,240].forEach(w=>setTimeout(()=>hostConn.open&&hostConn.send({t:'start',l,m}),w))}else beginRace(l,m)}
-function show(on){ovOn=on;$('ov').style.display=on?'flex':'none'}
+function show(on){ovOn=on;$('ov').style.display=on?'flex':'none';$('mn').style.display=on?'none':'block'}
 const sc=r=>mode==='rumble'?(r.k||0):(r.d>0?2+1/(1+r.d):r.g);
 function rows(){
  const a=[{n:myName,c:myHue,g:prog(),d:doneT,pn:pen,k:kos,me:1}];
@@ -137,17 +140,23 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
   li.appendChild(document.createTextNode((state==='done'?(i+1)+'. ':'')+r.n+(r.me?' (you)':'')+' — '+(state==='lobby'?'ready':mode==='rumble'?(r.k||0)+' KO'+(r.k==1?'':'s'):(r.d>0?r.d.toFixed(1)+'s':Math.round(r.g*100)+'%'))));ul.appendChild(li)})}
 let musicOn=true;
 const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
-function pane(v,h,msg){state='menu';['home','opts','cred','modes'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
-const showHome=()=>pane('home','TrailBall','v1.7');
+function pane(v,h,msg,keep){if(!keep)state='menu';['home','opts','cred','modes','pmenu'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
+const showHome=()=>pane('home','TrailBall','v1.8');
 const showMode=()=>pane('modes','Choose mode','Race to the finish, or knock rivals off the platform.');
 const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
 function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
 function setMusic(v){musicOn=v;sv('music',v?'1':'0');optsUI();if(v){aud();startMusic()}}
-const showOpts=()=>{pane('opts','Options','');optsUI()};
-const showCred=()=>pane('cred','Credits','');
+let menuFrom='home';
+const showOpts=()=>{pane('opts','Options','',menuFrom==='pause');optsUI()};
+const showCred=()=>pane('cred','Credits','',menuFrom==='pause');
+const showPause=()=>{menuFrom='pause';pane('pmenu','Menu',net?'Other players keep playing while you are in the menu.':'The game keeps running behind this menu.',true)};
+function goMainMenu(){try{hostConn&&hostConn.close()}catch(e){}try{conns.forEach(c=>c.close())}catch(e){}try{peer&&peer.destroy()}catch(e){}
+ net=null;peer=null;hostConn=null;conns=[];others=new Map();lostHost=false;lastRace=null;raceId=0;raceM='race';bots=[];bars.length=0;charge=false;bounceUntil=0;ball=null;mode='race';lvl=0;lkey=0;
+ myTrail.length=0;otrail.clear();buf.clear();lastBi.clear();lastHit.clear();lastAl.clear();pickups=[];boosts=[];['ps','tm','lv'].forEach(k=>$(k).textContent='');
+ state='menu';menuFrom='home';build();showHome()}
 function showSetup(){state='menu';card('Get ready',mode==='rumble'?RUMBLE_TXT:HOWTO,'Play',true)}
 function readLevel(){return Math.max(0,Math.min(NL-1,(parseInt($('lvn').value)||1)-1))}
-function card(h,msg,btn,menu){$('home').style.display=$('opts').style.display=$('cred').style.display=$('modes').style.display='none';$('go').style.display='';$('back').style.display='block';$('back').textContent=menu?'Back':'Main menu';$('back').onclick=menu?showMode:()=>location.reload();$('lvp').style.display=(state==='lobby'||state==='done')&&mode==='race'?'block':'none';$('lvn').value=state==='done'?Math.min(NL,lvl+2):lvl+1;$('sw').style.display=$('tr').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
+function card(h,msg,btn,menu){$('home').style.display=$('opts').style.display=$('cred').style.display=$('modes').style.display=$('pmenu').style.display='none';$('go').style.display='';$('back').style.display='block';$('back').textContent=menu?'Back':'Main menu';$('back').onclick=menu?showMode:goMainMenu;$('lvp').style.display=(state==='lobby'||state==='done')&&mode==='race'?'block':'none';$('lvn').value=state==='done'?Math.min(NL,lvl+2):lvl+1;$('sw').style.display=$('tr').style.display=menu||state==='lobby'?'block':'none';$('h').textContent=h;$('msg').textContent=msg;$('go').textContent=btn;$('go').disabled=false;$('inp').style.display=menu?'block':'none';renderBoard();show(true)}
 const TRN=['None','Comet','Rainbow','Sparkle'];
 function trailBtns(){const b=$('tr');b.textContent='';const l=document.createElement('span');l.textContent='Trail effect';b.appendChild(l);
  TRN.forEach((nm,i)=>{const x=document.createElement('button');x.textContent=nm;x.className=i===myTr?'on':'';x.onclick=()=>{myTr=i;sv('tr',i);pres({tr:i});trailBtns()};b.appendChild(x)})}
@@ -195,8 +204,9 @@ setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
  if(ovOn&&++tk%8==0)renderBoard()},33);
 /* ---------- input ---------- */
 $('go').onclick=()=>{aud();startMusic();try{const de=document.documentElement;if(de.requestFullscreen&&!document.fullscreenElement)de.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}if(state==='menu')doJoin();else if(state==='lobby'||state==='done')requestRace(mode==='race'?readLevel():0)};
-addEventListener('pointerdown',e=>{aud();startMusic();if(!ovOn&&e.target.id!=='mt')drag=[e.clientX,e.clientY]});
-$('bPlay').onclick=showMode;$('bRace').onclick=()=>{mode='race';ball=null;build();showSetup()};$('bRumble').onclick=()=>{mode='rumble';ball=null;build();showSetup()};$('bBack3').onclick=showHome;$('bOpt').onclick=showOpts;$('bCred').onclick=showCred;$('bBack1').onclick=$('bBack2').onclick=showHome;$('mOn').onclick=()=>setMusic(true);$('mOff').onclick=()=>setMusic(false);
+addEventListener('pointerdown',e=>{aud();startMusic();if(!ovOn&&e.target.id!=='mt'&&e.target.id!=='mn')drag=[e.clientX,e.clientY]});
+$('bPlay').onclick=showMode;$('bRace').onclick=()=>{mode='race';ball=null;build();showSetup()};$('bRumble').onclick=()=>{mode='rumble';ball=null;build();showSetup()};$('bBack3').onclick=showHome;$('bOpt').onclick=()=>{menuFrom='home';showOpts()};$('bCred').onclick=()=>{menuFrom='home';showCred()};$('bBack1').onclick=$('bBack2').onclick=()=>menuFrom==='pause'?showPause():showHome();
+$('mn').onclick=showPause;$('bResume').onclick=()=>show(false);$('bPOpt').onclick=()=>{menuFrom='pause';showOpts()};$('bPCred').onclick=()=>{menuFrom='pause';showCred()};$('bPMain').onclick=goMainMenu;$('mOn').onclick=()=>setMusic(true);$('mOff').onclick=()=>setMusic(false);
 $('mt').onclick=()=>{mute=!mute;$('mt').textContent=mute?'🔇':'🔊';if(!mute){aud();startMusic()}};
 addEventListener('pointermove',e=>{if(drag){tilt.x=Math.max(-1.5,Math.min(1.5,(e.clientX-drag[0])/70));tilt.y=Math.max(-1.5,Math.min(1.5,(e.clientY-drag[1])/70))}});
 addEventListener('pointerup',()=>{drag=null;tilt.x=tilt.y=0});
