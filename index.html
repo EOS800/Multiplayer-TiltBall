@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.6</title>
+<title>TrailBall v1.7</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -68,12 +68,12 @@ function place(u,k,N){const taken=portals.concat(pickups,boosts).filter(p=>p!==u
  u.idx=idx;u.lj=k?k.lj:Math.random()*.7-.35;const a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1;u.x=path[idx][0]-ty/l*u.lj*halfW;u.y=path[idx][1]+tx/l*u.lj*halfW}
 function respawn(u,now,lo,span){u.until=now+lo+Math.random()*span;place(u,null,path.length)}
 const camAx=(v,world,size)=>world<=size?(world-size)/2:Math.max(0,Math.min(world-size,v));
-function buildArena(){const rr=rng((rseed*7919+13)|0),R0=PW*.46*Math.sqrt(7),amps=[.16,.11,.07],ks=[2,3,5],ph=ks.map(()=>rr()*6.28);
+function buildArena(){const rr=rng((rseed*7919+13)|0),R0=PW*.46*Math.sqrt(12),amps=[.16,.11,.07],ks=[2,3,5],ph=ks.map(()=>rr()*6.28);
  WW=worldH=2*R0*1.45;halfW=.1*PW;
  const shape=a=>{let f=1;for(let i=0;i<3;i++)f+=amps[i]*Math.sin(ks[i]*a+ph[i]);return f},sc=arena?arena.sc:1;
  arena={cx:WW/2,cy:worldH/2,R0,sc,R:R0*sc,shape,rad(a){return this.R0*this.sc*this.shape(a)}};
  path=[];portals=[];pickups=[];boosts=[];trackPath=null;
- for(let i=0;i<5;i++){const a=rr()*6.283,rad=Math.sqrt(rr())*.7*R0*shape(a);portals.push({x:arena.cx+Math.cos(a)*rad,y:arena.cy+Math.sin(a)*rad,r:Math.max(14,ballR()*1.5)})}}
+ const a0=rr()*6.283;for(let i=0;i<2;i++){const a=a0+i*(Math.PI+(rr()-.5)*1.2),rad=(.45+.3*rr())*R0*shape(a);portals.push({x:arena.cx+Math.cos(a)*rad,y:arena.cy+Math.sin(a)*rad,r:Math.max(14,ballR()*1.5)})}}
 function mkPath(Q,lp){const n=Q.length,p=[];for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)],ns=Math.max(8,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/14));for(let k=0;k<ns;k++)p.push(cr(a,b,c,d,k/ns))}if(!lp)p.push(Q[n-1]);return p}
 function minRad(p,lp){const N=p.length,k=Math.max(2,Math.min(6,Math.round(halfW/8)));let m=1e9;for(let i=0;i<N;i+=2){if(!lp&&i+2*k>=N)break;const A=p[i],B=p[(i+k)%N],C=p[(i+2*k)%N],a=Math.hypot(B[0]-C[0],B[1]-C[1]),b=Math.hypot(A[0]-C[0],A[1]-C[1]),c=Math.hypot(A[0]-B[0],A[1]-B[1]),ar=Math.abs((B[0]-A[0])*(C[1]-A[1])-(C[0]-A[0])*(B[1]-A[1]))/2;if(ar>1){const R=a*b*c/(4*ar);if(R<m)m=R}}return m}
 function zig(p,offs,Z,lam){const N=p.length,cum=[0];for(let i=1;i<N;i++)cum.push(cum[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));const Lt=cum[N-1],zl=3*lam,ramp=.6*lam,out=[];
@@ -121,7 +121,7 @@ const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
 function beginRace(l,m){if(m)mode=m==='rumble'?'rumble':'race';lvl=mode==='rumble'?0:l;lkey=mode==='rumble'?100:lvl;rseed=net==='host'?raceId:(net==='client'&&lastRace!==null?lastRace:Math.floor(Math.random()*1e9));pickups=[];boosts=[];build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounceUntil=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;
  kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
- if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<6;i++){const q=rndIn(.7);bots.push({id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
+ if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<8;i++){const q=rndIn(.7);bots.push({id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
  pres({l:lkey,d:0,g:0,pn:0,f:0,k:0,al:1});show(false)}
 function hostStart(l,m){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;raceM=m||mode;beginRace(l,raceM)}
 function requestRace(l){const m=mode;if(net==='host')hostStart(l,m);else if(net==='client'&&hostConn&&hostConn.open){[0,120,240].forEach(w=>setTimeout(()=>hostConn.open&&hostConn.send({t:'start',l,m}),w))}else beginRace(l,m)}
@@ -138,9 +138,9 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
 let musicOn=true;
 const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
 function pane(v,h,msg){state='menu';['home','opts','cred','modes'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
-const showHome=()=>pane('home','TrailBall','v1.6');
+const showHome=()=>pane('home','TrailBall','v1.7');
 const showMode=()=>pane('modes','Choose mode','Race to the finish, or knock rivals off the platform.');
-const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 6 bots.';
+const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
 function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
 function setMusic(v){musicOn=v;sv('music',v?'1':'0');optsUI();if(v){aud();startMusic()}}
 const showOpts=()=>{pane('opts','Options','');optsUI()};
@@ -186,7 +186,7 @@ function connect(){
 function doJoin(){
  myName=($('nm').value.trim()||'Player').slice(0,12);sv('name',myName);code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
  meSt={bo:0,pu:0,tr:myTr,n:myName,c:myHue,l:mode==='rumble'?100:lvl,k:0,al:1,x:0,y:0,g:0,pn:0,f:0,d:0,u:0,v:0,q:0};lastRace=null;raceId=0;
- if(!code){goLobby(mode==='rumble'?'Solo rumble':'Solo race',mode==='rumble'?'You vs 6 bots!':'Race the clock!');return}
+ if(!code){goLobby(mode==='rumble'?'Solo rumble':'Solo race',mode==='rumble'?'You vs 8 bots!':'Race the clock!');return}
  if(typeof Peer==='undefined'){goLobby('Solo race','Couldn\'t load the multiplayer library, so you\'re racing solo.');return}
  $('go').disabled=true;$('msg').textContent='Connecting to room '+code+'…';connect()}
 setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
@@ -237,14 +237,14 @@ function stepBots(now){const A=arena,tg=[];if(rAlive)tg.push(ball);for(const b o
  for(const b of bots){if(!b.alive){if(now>=b.rs){const q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.alive=true}continue}
   let best=null,bd=1e9;for(const t of tg){if(t===b)continue;const d=Math.hypot(t.x-b.x,t.y-b.y);if(d<bd){bd=d;best=t}}
   let ax=0,ay=0;if(best&&bd>0){ax=(best.x-b.x)/bd;ay=(best.y-b.y)/bd}
-  const dx=b.x-A.cx,dy=b.y-A.cy,dc=Math.hypot(dx,dy)||1,rad=A.rad(Math.atan2(dy,dx));if(dc>rad*.72){ax=ax*.3-dx/dc*1.4;ay=ay*.3-dy/dc*1.4}
+  const dx=b.x-A.cx,dy=b.y-A.cy,dc=Math.hypot(dx,dy)||1,rad=A.rad(Math.atan2(dy,dx));if(dc>rad*.8){ax=ax*.3-dx/dc*1.4;ay=ay*.3-dy/dc*1.4}
   b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;
   if(dc>rad+ball.r*.3){b.alive=false;b.rs=now+2200;if(now-(lastHit.get(b.id)||-1e9)<3000){kos++;koSfx()}}}
  for(let i=0;i<bots.length;i++)for(let j=i+1;j<bots.length;j++){const a=bots[i],b=bots[j];if(!a.alive||!b.alive)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d,ov=(mr-d)/2;a.x+=nx*ov;a.y+=ny*ov;b.x-=nx*ov;b.y-=ny*ov;const vr=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(vr<0){const j2=-(1.95)*vr/2;a.vx+=nx*j2;a.vy+=ny*j2;b.vx-=nx*j2;b.vy-=ny*j2}}}}
 function stepRumble(now){
  const A=arena;if(!A)return;
  if(state==='count'&&now>=startAt)state='play';
- const fr=state==='play'||state==='done'?Math.max(0,Math.min(1,(now-startAt)/RUM_T)):0;A.sc=1-.62*fr;A.R=A.R0*A.sc;
+ const fr=state==='play'||state==='done'?Math.max(0,Math.min(1,(now-startAt)/RUM_T)):0;A.sc=1-.75*fr;A.R=A.R0*A.sc;
  for(const[id,q]of others){if(!q.n||q.l!==lkey)continue;const pv=lastAl.get(id),al=q.al!==0?1:0;if(pv===1&&al===0&&state==='play'&&now-(lastHit.get(id)||-1e9)<3000){kos++;koSfx()}lastAl.set(id,al)}
  if(state==='play'&&ball){
   stepBots(now);
