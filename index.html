@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.8</title>
+<title>TrailBall v1.9</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -55,7 +55,7 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.get
 const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
 for(let n=0;n<NL;n++){const t=n/(NL-1);LV.push(n%5!==4?{name:'Circuit '+(n+1),loop:1,laps:n<30?3:2,kx:2.3+1.2*t,ky:4+6*t,w:.11-.055*t,seed:n*37+5,amp:.10+.15*t,M:14+Math.round(26*t),t}:{name:'Sprint '+(n+1),loop:0,laps:1,kx:2.3+.9*t,ky:5+5*t,w:.105-.05*t,seed:n*37+5,t})}
 const BAR_LIFE=5000,RUM_T=90000;
-let rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
+let lockMap=new Map(),rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
 let W,H,PW,ox,S,dpr,lvl=0,worldH=1,path=[],halfW=40,ball=null,state='menu',cam=0,t0=0,time=0,pen=0,total=0,lastIdx=0,portals=[],noPortal=0,msgUntil=0,buf=new Map(),frozenUntil=0,startAt=0,doneT=0,ovOn=true,frame=0,tk=0;
 let tilt={x:0,y:0},drag=null,keys={},myName='Player',myHue=HUES[Math.random()*8|0],code='',myTr=1,myTrail=[],otrail=new Map(),wrongSince=0,wrong=false;
 let net=null,peer=null,hostConn=null,conns=[],others=new Map(),meSt={},myId='',lostHost=false,raceId=0,raceL=0,lastRace=null,lastStartT=0;
@@ -123,7 +123,7 @@ const target=()=>LV[lvl].loop?LV[lvl].laps*path.length:path.length-1;
 const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
 function beginRace(l,m){if(m)mode=m==='rumble'?'rumble':'race';lvl=mode==='rumble'?0:l;lkey=mode==='rumble'?100:lvl;rseed=net==='host'?raceId:(net==='client'&&lastRace!==null?lastRace:Math.floor(Math.random()*1e9));pickups=[];boosts=[];build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounceUntil=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;
- kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
+ kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();lockMap.clear();bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
  if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<8;i++){const q=rndIn(.7);bots.push({id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
  pres({l:lkey,d:0,g:0,pn:0,f:0,k:0,al:1});show(false)}
 function hostStart(l,m){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;raceM=m||mode;beginRace(l,raceM)}
@@ -141,7 +141,7 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
 let musicOn=true;
 const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
 function pane(v,h,msg,keep){if(!keep)state='menu';['home','opts','cred','modes','pmenu'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
-const showHome=()=>pane('home','TrailBall','v1.8');
+const showHome=()=>pane('home','TrailBall','v1.9');
 const showMode=()=>pane('modes','Choose mode','Race to the finish, or knock rivals off the platform.');
 const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
 function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
@@ -243,14 +243,18 @@ function drawPortal(p,nt,pr){if(p.x<camx-pr||p.x>camx+W+pr||p.y<cam-pr||p.y>cam+
  const gr=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);gr.addColorStop(0,'#000');gr.addColorStop(.6,'#4b1d8f');gr.addColorStop(1,'#b36bff');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
  ctx.setLineDash([7,6]);ctx.lineDashOffset=-nt/25;ctx.strokeStyle='#ecd6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,p.r*.78,0,7);ctx.stroke();ctx.setLineDash([])}
 const outDist=(x,y)=>{const A=arena,dx=x-A.cx,dy=y-A.cy;return Math.hypot(dx,dy)-A.rad(Math.atan2(dy,dx))};
-function stepBots(now){const A=arena,tg=[];if(rAlive)tg.push(ball);for(const b of bots)if(b.alive)tg.push(b);
+function stepBots(now){const A=arena,tg=[];lockMap.forEach((v,k)=>{if(now-v.last>300)lockMap.delete(k)});if(rAlive)tg.push(ball);for(const b of bots)if(b.alive)tg.push(b);
  for(const b of bots){if(!b.alive){if(now>=b.rs){const q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.alive=true}continue}
   let best=null,bd=1e9;for(const t of tg){if(t===b)continue;const d=Math.hypot(t.x-b.x,t.y-b.y);if(d<bd){bd=d;best=t}}
   let ax=0,ay=0;if(best&&bd>0){ax=(best.x-b.x)/bd;ay=(best.y-b.y)/bd}
+  if(now<b.flee){ax=b.fx;ay=b.fy}
   const dx=b.x-A.cx,dy=b.y-A.cy,dc=Math.hypot(dx,dy)||1,rad=A.rad(Math.atan2(dy,dx));if(dc>rad*.8){ax=ax*.3-dx/dc*1.4;ay=ay*.3-dy/dc*1.4}
   b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;
   if(dc>rad+ball.r*.3){b.alive=false;b.rs=now+2200;if(now-(lastHit.get(b.id)||-1e9)<3000){kos++;koSfx()}}}
- for(let i=0;i<bots.length;i++)for(let j=i+1;j<bots.length;j++){const a=bots[i],b=bots[j];if(!a.alive||!b.alive)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d,ov=(mr-d)/2;a.x+=nx*ov;a.y+=ny*ov;b.x-=nx*ov;b.y-=ny*ov;const vr=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(vr<0){const j2=-(1.95)*vr/2;a.vx+=nx*j2;a.vy+=ny*j2;b.vx-=nx*j2;b.vy-=ny*j2}}}}
+ for(let i=0;i<bots.length;i++)for(let j=i+1;j<bots.length;j++){const a=bots[i],b=bots[j];if(!a.alive||!b.alive)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),mr=ball.r*2;
+  if(d<mr*1.15&&d>.01){const key=a.id+'-'+b.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;
+   if(now-lk.s>3000){const nx=dx/d,ny=dy/d;a.vx+=nx*9*S;a.vy+=ny*9*S;b.vx-=nx*9*S;b.vy-=ny*9*S;a.flee=b.flee=now+1500;a.fx=nx;a.fy=ny;b.fx=-nx;b.fy=-ny;lockMap.delete(key)}}
+  if(d<mr&&d>.01){const nx=dx/d,ny=dy/d,ov=(mr-d)/2;a.x+=nx*ov;a.y+=ny*ov;b.x-=nx*ov;b.y-=ny*ov;const vr=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(vr<0){const j2=-(1.95)*vr/2;a.vx+=nx*j2;a.vy+=ny*j2;b.vx-=nx*j2;b.vy-=ny*j2}}}}
 function stepRumble(now){
  const A=arena;if(!A)return;
  if(state==='count'&&now>=startAt)state='play';
@@ -260,13 +264,13 @@ function stepRumble(now){
   stepBots(now);
   if(rAlive){
    ball.vx+=tilt.x*.34*S;ball.vy+=tilt.y*.34*S;ball.vx*=.97;ball.vy*=.97;
-   if(now>noPortal)for(const p of portals){const pr=p.r*6,dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.14*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}
+   if(now>noPortal)for(const p of portals){const pr=p.r*6,dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}
    const m=10*S,sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
    ball.x+=ball.vx;ball.y+=ball.vy;
    if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.4){let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
    const L=[];for(const[id,q]of others){if(!q.n||q.l!==lkey||q.al===0)continue;const p=samplePos(id,q,now);L.push({id,x:p.x*WW,y:p.y*worldH,vx:q.u*WW/60,vy:q.v*worldH/60})}
    for(const b of bots)if(b.alive)L.push({id:b.id,x:b.x,y:b.y,vx:b.vx,vy:b.vy,b});
-   for(const o of L){const dx=ball.x-o.x,dy=ball.y-o.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d;ball.x+=nx*(mr-d)*.6;ball.y+=ny*(mr-d)*.6;lastHit.set(o.id,now);const vr=(ball.vx-o.vx)*nx+(ball.vy-o.vy)*ny;
+   for(const o of L){const dx=ball.x-o.x,dy=ball.y-o.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d;ball.x+=nx*(mr-d)*.6;ball.y+=ny*(mr-d)*.6;lastHit.set(o.id,now);if(o.b){const key='m'+o.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;if(now-lk.s>3000){o.b.vx-=nx*9*S;o.b.vy-=ny*9*S;ball.vx+=nx*5*S;ball.vy+=ny*5*S;o.b.flee=now+1500;o.b.fx=-nx;o.b.fy=-ny;lockMap.delete(key)}}const vr=(ball.vx-o.vx)*nx+(ball.vy-o.vy)*ny;
      if(vr<0){const j=-1.95*vr/2+2.5*S;ball.vx+=nx*j;ball.vy+=ny*j;if(o.b){o.b.vx-=nx*j;o.b.vy-=ny*j}if(now>lastBump){lastBump=now+120;bumpSfx();navigator.vibrate&&navigator.vibrate(25)}}}}
    if(outDist(ball.x,ball.y)>ball.r*.3){rAlive=false;respawnAt=now+2200;deaths++;fallSfx();navigator.vibrate&&navigator.vibrate(120)}
   }else if(now>=respawnAt){const q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;rAlive=true}
@@ -309,7 +313,7 @@ function step(){
  if(state==='frozen'&&now>=frozenUntil)state='play';
  if(state==='play'){
   const bk=now<bounceUntil?1.15:1;ball.vx+=tilt.x*.32*S*bk;ball.vy+=tilt.y*.32*S*bk;ball.vx*=.985;ball.vy*=.985;
-  if(now>noPortal){const pr=Math.min(5*halfW,230);for(const p of portals){const dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.14*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}}
+  if(now>noPortal){const pr=Math.min(5*halfW,230);for(const p of portals){const dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}}
   const m=9*S*(now<bounceUntil?1.2:1),sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
   ball.x+=ball.vx;ball.y+=ball.vy;
   if(ball.x<ball.r||ball.x>WW-ball.r){ball.x=Math.max(ball.r,Math.min(WW-ball.r,ball.x));ball.vx*=-.4}
