@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.9</title>
+<title>TrailBall v1.10</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -12,9 +12,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
-:root{--bg:#eef1f5;--track:#fff;--edge:#c5ccd8;--ball:#e8553d;--goal:#2fa86b;--ink:#1d2330;--card:#fffffff2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}}
-:root[data-theme="dark"]{--bg:#141922;--track:#2a3345;--edge:#3b465c;--ink:#e8ecf4;--card:#1e2533f2}
+:root{--bg:#070b18;--track:#2b3652;--edge:#5a6a90;--ball:#e8553d;--goal:#2fa86b;--ink:#e8ecf4;--card:#171f36f2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block;width:100%;height:100%}
 #hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);display:flex;justify-content:space-between;padding:10px 14px;font-weight:600;font-size:14px;pointer-events:none;text-shadow:0 0 6px var(--bg),0 0 6px var(--bg)}
@@ -55,7 +53,7 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.get
 const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
 for(let n=0;n<NL;n++){const t=n/(NL-1);LV.push(n%5!==4?{name:'Circuit '+(n+1),loop:1,laps:n<30?3:2,kx:2.3+1.2*t,ky:4+6*t,w:.11-.055*t,seed:n*37+5,amp:.10+.15*t,M:14+Math.round(26*t),t}:{name:'Sprint '+(n+1),loop:0,laps:1,kx:2.3+.9*t,ky:5+5*t,w:.105-.05*t,seed:n*37+5,t})}
 const BAR_LIFE=5000,RUM_T=90000;
-let lockMap=new Map(),rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
+let fx=[],knockUntil=0,hitUntil=0,hitAng=0,lockMap=new Map(),rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
 let W,H,PW,ox,S,dpr,lvl=0,worldH=1,path=[],halfW=40,ball=null,state='menu',cam=0,t0=0,time=0,pen=0,total=0,lastIdx=0,portals=[],noPortal=0,msgUntil=0,buf=new Map(),frozenUntil=0,startAt=0,doneT=0,ovOn=true,frame=0,tk=0;
 let tilt={x:0,y:0},drag=null,keys={},myName='Player',myHue=HUES[Math.random()*8|0],code='',myTr=1,myTrail=[],otrail=new Map(),wrongSince=0,wrong=false;
 let net=null,peer=null,hostConn=null,conns=[],others=new Map(),meSt={},myId='',lostHost=false,raceId=0,raceL=0,lastRace=null,lastStartT=0;
@@ -123,7 +121,7 @@ const target=()=>LV[lvl].loop?LV[lvl].laps*path.length:path.length-1;
 const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
 function beginRace(l,m){if(m)mode=m==='rumble'?'rumble':'race';lvl=mode==='rumble'?0:l;lkey=mode==='rumble'?100:lvl;rseed=net==='host'?raceId:(net==='client'&&lastRace!==null?lastRace:Math.floor(Math.random()*1e9));pickups=[];boosts=[];build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounceUntil=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;
- kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();lockMap.clear();bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
+ kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();lockMap.clear();fx.length=0;knockUntil=0;hitUntil=0;bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
  if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<8;i++){const q=rndIn(.7);bots.push({id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
  pres({l:lkey,d:0,g:0,pn:0,f:0,k:0,al:1});show(false)}
 function hostStart(l,m){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;raceM=m||mode;beginRace(l,raceM)}
@@ -141,7 +139,7 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
 let musicOn=true;
 const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
 function pane(v,h,msg,keep){if(!keep)state='menu';['home','opts','cred','modes','pmenu'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
-const showHome=()=>pane('home','TrailBall','v1.9');
+const showHome=()=>pane('home','TrailBall','v1.10');
 const showMode=()=>pane('modes','Choose mode','Race to the finish, or knock rivals off the platform.');
 const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
 function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
@@ -238,6 +236,14 @@ document.addEventListener('visibilitychange',()=>{if(!ac)return;try{document.hid
 const koSfx=()=>{tone(500,1300,.18,'square',.1);setTimeout(()=>tone(900,1800,.2,'square',.09),100)};
 const bumpSfx=()=>tone(180,90,.09,'square',.12);
 const fallSfx=()=>tone(420,60,.45,'sawtooth',.16);
+const STARS=Array.from({length:170},()=>({x:Math.random(),y:Math.random(),z:.15+Math.random()*.85,p:Math.random()*6.28,s:Math.random()<.12?2:1}));
+function drawSpace(nt){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#04060f');g.addColorStop(.55,'#0a1030');g.addColorStop(1,'#150d33');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ [[.2,.25,'rgba(120,60,200,.22)',.7],[.85,.7,'rgba(40,120,220,.18)',.8],[.55,.95,'rgba(220,60,150,.13)',.6]].forEach((n,i)=>{const x=W*n[0]+Math.sin(nt/9000+i*2)*40-camx*.04*(i+1),y=H*n[1]+Math.cos(nt/11000+i)*30-cam*.04*(i+1),rr=Math.max(W,H)*n[3],rg=ctx.createRadialGradient(x,y,0,x,y,rr);rg.addColorStop(0,n[2]);rg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H)});
+ const ww=W+160,hh=H+160;
+ for(const s of STARS){const sx=(((s.x*ww-camx*s.z*.35-nt*.006*s.z)%ww)+ww)%ww-80,sy=(((s.y*hh-cam*s.z*.35)%hh)+hh)%hh-80,sz=s.s*(s.z>.6?2:1);ctx.globalAlpha=(.35+.65*(.5+.5*Math.sin(nt/(500+s.z*300)+s.p)))*(.4+.6*s.z);ctx.fillStyle=s.z>.8?'#cfe3ff':'#ffffff';ctx.fillRect(sx,sy,sz,sz)}
+ ctx.globalAlpha=1;
+ const k=Math.floor(nt/6500),f=(nt%6500)/6500;if(f<.1){const r1=((k*9301+49297)%233280)/233280,r2=((k*7919+1234)%233280)/233280,t=f/.1,x0=W*(.1+.8*r1),y0=H*(.05+.4*r2);ctx.strokeStyle='rgba(255,255,255,'+(1-t)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0+t*260,y0+t*130);ctx.lineTo(x0+t*260-126,y0+t*130-63);ctx.stroke()}}
 function drawPortal(p,nt,pr){if(p.x<camx-pr||p.x>camx+W+pr||p.y<cam-pr||p.y>cam+H+pr)return;
  dot(p.x,p.y,pr,'#8a4cd8',.06);ctx.strokeStyle='#b36bff';ctx.lineWidth=2;for(let q=0;q<2;q++){const f=((nt/1100)+q*.5)%1;ctx.globalAlpha=.28*(1-f);ctx.beginPath();ctx.arc(p.x,p.y,pr*(1-f),0,7);ctx.stroke()}ctx.globalAlpha=1;
  const gr=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);gr.addColorStop(0,'#000');gr.addColorStop(.6,'#4b1d8f');gr.addColorStop(1,'#b36bff');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
@@ -249,7 +255,9 @@ function stepBots(now){const A=arena,tg=[];lockMap.forEach((v,k)=>{if(now-v.last
   let ax=0,ay=0;if(best&&bd>0){ax=(best.x-b.x)/bd;ay=(best.y-b.y)/bd}
   if(now<b.flee){ax=b.fx;ay=b.fy}
   const dx=b.x-A.cx,dy=b.y-A.cy,dc=Math.hypot(dx,dy)||1,rad=A.rad(Math.atan2(dy,dx));if(dc>rad*.8){ax=ax*.3-dx/dc*1.4;ay=ay*.3-dy/dc*1.4}
-  b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;
+  b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;if(!(now<b.noP))for(const p of portals){const pr=p.r*6,px=p.x-b.x,py=p.y-b.y,pd=Math.hypot(px,py);if(pd<pr&&pd>1){const f=.11*S*(1-pd/pr);b.vx+=px/pd*f;b.vy+=py/pd*f}}
+  const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;
+  if(!(now<b.noP))for(const p of portals)if(Math.hypot(b.x-p.x,b.y-p.y)<p.r+ball.r*.4){fx.push({x:p.x,y:p.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.noP=now+800;fx.push({x:q[0],y:q[1],t:now,r:p.r*1.2,c:'#b36bff'});if(Math.hypot(b.x-ball.x,b.y-ball.y)<Math.max(W,H))portalSfx(.25);break}
   if(dc>rad+ball.r*.3){b.alive=false;b.rs=now+2200;if(now-(lastHit.get(b.id)||-1e9)<3000){kos++;koSfx()}}}
  for(let i=0;i<bots.length;i++)for(let j=i+1;j<bots.length;j++){const a=bots[i],b=bots[j];if(!a.alive||!b.alive)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),mr=ball.r*2;
   if(d<mr*1.15&&d>.01){const key=a.id+'-'+b.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;
@@ -265,13 +273,17 @@ function stepRumble(now){
   if(rAlive){
    ball.vx+=tilt.x*.34*S;ball.vy+=tilt.y*.34*S;ball.vx*=.97;ball.vy*=.97;
    if(now>noPortal)for(const p of portals){const pr=p.r*6,dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}
-   const m=10*S,sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
+   const m=(now<knockUntil?17:10)*S,sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
    ball.x+=ball.vx;ball.y+=ball.vy;
-   if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.4){let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
+   if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.4){fx.push({x:ball.x,y:ball.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
    const L=[];for(const[id,q]of others){if(!q.n||q.l!==lkey||q.al===0)continue;const p=samplePos(id,q,now);L.push({id,x:p.x*WW,y:p.y*worldH,vx:q.u*WW/60,vy:q.v*worldH/60})}
    for(const b of bots)if(b.alive)L.push({id:b.id,x:b.x,y:b.y,vx:b.vx,vy:b.vy,b});
    for(const o of L){const dx=ball.x-o.x,dy=ball.y-o.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d;ball.x+=nx*(mr-d)*.6;ball.y+=ny*(mr-d)*.6;lastHit.set(o.id,now);if(o.b){const key='m'+o.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;if(now-lk.s>3000){o.b.vx-=nx*9*S;o.b.vy-=ny*9*S;ball.vx+=nx*5*S;ball.vy+=ny*5*S;o.b.flee=now+1500;o.b.fx=-nx;o.b.fy=-ny;lockMap.delete(key)}}const vr=(ball.vx-o.vx)*nx+(ball.vy-o.vy)*ny;
-     if(vr<0){const j=-1.95*vr/2+2.5*S;ball.vx+=nx*j;ball.vy+=ny*j;if(o.b){o.b.vx-=nx*j;o.b.vy-=ny*j}if(now>lastBump){lastBump=now+120;bumpSfx();navigator.vibrate&&navigator.vibrate(25)}}}}
+     if(vr<0){const j=-1.95*vr/2+2.5*S,am=Math.max(0,-(ball.vx*nx+ball.vy*ny)),ao=Math.max(0,o.vx*nx+o.vy*ny),so=ao/(am+ao+1e-6),mm=.6+.9*so,mo=.6+.9*(1-so);
+      ball.vx+=nx*j*mm;ball.vy+=ny*j*mm;knockUntil=now+(so>.5?450:150);if(o.b){o.b.vx-=nx*j*mo;o.b.vy-=ny*j*mo}
+      fx.push({x:ball.x-nx*ball.r,y:ball.y-ny*ball.r,t:now,r:ball.r*(1+so),c:so>.5?'#ffd23a':'#ffffff'});
+      if(so>.55){hitUntil=now+260;hitAng=Math.atan2(ny,nx)}
+      if(now>lastBump){lastBump=now+120;bumpSfx();navigator.vibrate&&navigator.vibrate(so>.55?60:25)}}}}
    if(outDist(ball.x,ball.y)>ball.r*.3){rAlive=false;respawnAt=now+2200;deaths++;fallSfx();navigator.vibrate&&navigator.vibrate(120)}
   }else if(now>=respawnAt){const q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;rAlive=true}
   if(now>=endAt){state='done';pres({k:kos,al:1});card('Time!','You scored '+kos+' KO'+(kos==1?'':'s')+'.','Next round',false)}}
@@ -284,7 +296,7 @@ function stepRumble(now){
  $('ps').textContent=ps}
 function arenaPath(sc,pad){const A=arena;ctx.beginPath();for(let i=0;i<=128;i++){const a=6.2832*i/128,r=A.R0*sc*A.shape(a)+pad,x=A.cx+Math.cos(a)*r,y=A.cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
 function drawRumble(nt){
- ctx.clearRect(0,0,W,H);const A=arena;if(!A)return;ctx.save();ctx.translate(-camx,-cam);ctx.lineJoin='round';
+ drawSpace(nt);const A=arena;if(!A)return;ctx.save();ctx.translate(-camx,-cam);ctx.lineJoin='round';
  ctx.setLineDash([8,8]);ctx.strokeStyle=css('--edge');ctx.lineWidth=2;arenaPath(1,0);ctx.stroke();ctx.setLineDash([]);
  arenaPath(A.sc,6);ctx.fillStyle=css('--edge');ctx.fill();arenaPath(A.sc,0);ctx.fillStyle=css('--track');ctx.fill();
  ctx.strokeStyle=css('--edge');ctx.globalAlpha=.5;ctx.lineWidth=2;[.33,.66].forEach(k=>{arenaPath(A.sc*k,0);ctx.stroke()});
@@ -296,7 +308,9 @@ function drawRumble(nt){
    dot(x+2,y+3,r,'#000',.2);dot(x,y,r,hc(q.c,55),.9);ctx.fillStyle=css('--ink');ctx.fillText(q.n,x,y-r-6)}
   for(const b of bots){if(!b.alive)continue;tgts.push([b.x,b.y,b.c]);dot(b.x+2,b.y+3,r,'#000',.2);dot(b.x,b.y,r,hc(b.c,50),.9);ctx.fillStyle=css('--ink');ctx.fillText(b.n,b.x,b.y-r-6)}
   if(ball&&rAlive){if(state==='play')pushTrail(myTrail,ball.x,ball.y,nt);drawTrail(myTrail,myTr,myHue,r,nt);dot(ball.x+3,ball.y+4,r,'#000',.2);
-   const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,hc(myHue,80));gr.addColorStop(1,hc(myHue,50));ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill()}}
+   if(nt<hitUntil){ctx.save();ctx.translate(ball.x,ball.y);ctx.rotate(hitAng);ctx.scale(.74,1.25);ctx.fillStyle=hc(myHue,62);ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();ctx.restore()}
+   else{const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,hc(myHue,80));gr.addColorStop(1,hc(myHue,50));ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill()}}}
+ fx=fx.filter(e=>nt-e.t<420);for(const e of fx){const a=(nt-e.t)/420;ctx.globalAlpha=1-a;ctx.strokeStyle=e.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.5+1.6*a),0,7);ctx.stroke()}ctx.globalAlpha=1
  ctx.restore();ctx.textAlign='center';ctx.fillStyle=css('--ink');
  for(const t of tgts){const sx=t[0]-camx,sy=t[1]-cam;if(sx>=0&&sx<=W&&sy>=0&&sy<=H)continue;const dx=sx-W/2,dy=sy-H/2,k=Math.min((W/2-22)/Math.abs(dx||1e-6),(H/2-22)/Math.abs(dy||1e-6));
   ctx.save();ctx.translate(W/2+dx*k,H/2+dy*k);ctx.rotate(Math.atan2(dy,dx));ctx.fillStyle=hc(t[2],55);ctx.globalAlpha=.9;ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-8,-9);ctx.lineTo(-8,9);ctx.closePath();ctx.fill();ctx.restore()}
@@ -358,7 +372,7 @@ function samplePos(id,q,nt){
  return b[0]}
 function draw(){
  if(mode==='rumble'){drawRumble(performance.now());return}
- ctx.clearRect(0,0,W,H);if(!path.length)return;ctx.save();ctx.translate(-camx,-cam);
+ drawSpace(performance.now());if(!path.length)return;ctx.save();ctx.translate(-camx,-cam);
  ctx.lineCap=ctx.lineJoin='round';
  ctx.strokeStyle=css('--edge');ctx.lineWidth=halfW*2+6;ctx.stroke(trackPath);ctx.strokeStyle=css('--track');ctx.lineWidth=halfW*2;ctx.stroke(trackPath);
  const e=path[path.length-1],g=css('--goal'),nt=performance.now();
