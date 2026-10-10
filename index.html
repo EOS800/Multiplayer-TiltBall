@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TrailBall v1.10</title>
+<title>TrailBall v1.12</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#18202f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -52,8 +52,8 @@ canvas{display:block;width:100%;height:100%}
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
 const NL=100,LV=[],PEN=5000,HUES=[4,28,50,140,190,215,270,320];
 for(let n=0;n<NL;n++){const t=n/(NL-1);LV.push(n%5!==4?{name:'Circuit '+(n+1),loop:1,laps:n<30?3:2,kx:2.3+1.2*t,ky:4+6*t,w:.11-.055*t,seed:n*37+5,amp:.10+.15*t,M:14+Math.round(26*t),t}:{name:'Sprint '+(n+1),loop:0,laps:1,kx:2.3+.9*t,ky:5+5*t,w:.105-.05*t,seed:n*37+5,t})}
-const BAR_LIFE=5000,RUM_T=90000;
-let fx=[],knockUntil=0,hitUntil=0,hitAng=0,lockMap=new Map(),rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
+const BAR_LIFE=5000,RUM_T=90000,PCYC=6500,PACT=5000;
+let builtMode='race',fx=[],knockUntil=0,hitUntil=0,hitAng=0,lockMap=new Map(),rseed=0,mode='race',lkey=0,raceM='race',arena=null,bots=[],rAlive=true,respawnAt=0,kos=0,deaths=0,lastHit=new Map(),lastAl=new Map(),endAt=0,lastBump=0,WW=1,camx=0,pickups=[],boosts=[],builtLvl=-1,bounceUntil=0,bounceFlash=0,mg=null,nbuf=null,mus=null,musNext=0,musStep=0,charge=false,chFrom=null,bars=[],lastBi=new Map(),myBi=0,trackPath=null,thudAt=0,ac=null,mute=false;
 let W,H,PW,ox,S,dpr,lvl=0,worldH=1,path=[],halfW=40,ball=null,state='menu',cam=0,t0=0,time=0,pen=0,total=0,lastIdx=0,portals=[],noPortal=0,msgUntil=0,buf=new Map(),frozenUntil=0,startAt=0,doneT=0,ovOn=true,frame=0,tk=0;
 let tilt={x:0,y:0},drag=null,keys={},myName='Player',myHue=HUES[Math.random()*8|0],code='',myTr=1,myTrail=[],otrail=new Map(),wrongSince=0,wrong=false;
 let net=null,peer=null,hostConn=null,conns=[],others=new Map(),meSt={},myId='',lostHost=false,raceId=0,raceL=0,lastRace=null,lastStartT=0;
@@ -64,17 +64,22 @@ function cr(p0,p1,p2,p3,t){const d=(a,b)=>Math.max(Math.sqrt(Math.hypot(a[0]-b[0
  return[0,1].map(i=>{const A1=((t1-tt)*p0[i]+tt*p1[i])/t1,A2=((t2-tt)*p1[i]+(tt-t1)*p2[i])/(t2-t1),A3=((t3-tt)*p2[i]+(tt-t2)*p3[i])/(t3-t2),B1=((t2-tt)*A1+tt*A2)/t2,B2=((t3-tt)*A2+(tt-t1)*A3)/(t3-t1);return((t2-tt)*B1+(tt-t1)*B2)/(t2-t1)})}
 const ballR=()=>Math.max(6,Math.min(11*S+3,halfW*.45));
 function freeIdx(t,list,N){for(let d=0;d<=240;d+=6)for(const sg of d?[1,-1]:[1]){const i=Math.max(3,Math.min(N-4,t+d*sg));if(!list.some(p=>Math.abs(p.idx-i)<10))return i}return Math.max(3,Math.min(N-4,t))}
-const HOWTO='Drag on the screen to tilt the board and roll the ball to the green goal. Do laps, avoid the purple portals (they pull you in and send you back), grab blue boost orbs to bounce off the track edges for 5 seconds, grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.';
+const HOWTO='Drag on the screen to tilt the board and roll the ball to the green goal. Do laps (solo races add 2 bots, and balls bump each other), avoid the purple portals (they appear for 5 seconds, pull you in and send you back, then vanish and pop up somewhere else), grab blue boost orbs to bounce off the track edges for 5 seconds, grab the gold power-ups to drop a striped barrier behind you that blocks other players, and stay on the track or you freeze for 5 seconds. Enter a room code to race friends.';
 function place(u,k,N){const taken=portals.concat(pickups,boosts).filter(p=>p!==u&&p.idx>0),idx=k?Math.min(k.idx,N-4):freeIdx(Math.floor(N*(.06+.88*Math.random())),taken,N);
  u.idx=idx;u.lj=k?k.lj:Math.random()*.7-.35;const a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1;u.x=path[idx][0]-ty/l*u.lj*halfW;u.y=path[idx][1]+tx/l*u.lj*halfW}
 function respawn(u,now,lo,span){u.until=now+lo+Math.random()*span;place(u,null,path.length)}
 const camAx=(v,world,size)=>world<=size?(world-size)/2:Math.max(0,Math.min(world-size,v));
-function buildArena(){const rr=rng((rseed*7919+13)|0),R0=PW*.46*Math.sqrt(12),amps=[.16,.11,.07],ks=[2,3,5],ph=ks.map(()=>rr()*6.28);
+function buildArena(){const keep=builtMode==='rumble'&&arena&&(pickups.length+boosts.length)>0,op=pickups.map(u=>[u.x/WW,u.y/worldH,u.until]),ob=boosts.map(u=>[u.x/WW,u.y/worldH,u.until]);
+ const rr=rng((rseed*7919+13)|0),R0=PW*.46*Math.sqrt(12),amps=[.16,.11,.07],ks=[2,3,5],ph=ks.map(()=>rr()*6.28);
  WW=worldH=2*R0*1.45;halfW=.1*PW;
  const shape=a=>{let f=1;for(let i=0;i<3;i++)f+=amps[i]*Math.sin(ks[i]*a+ph[i]);return f},sc=arena?arena.sc:1;
  arena={cx:WW/2,cy:worldH/2,R0,sc,R:R0*sc,shape,rad(a){return this.R0*this.sc*this.shape(a)}};
  path=[];portals=[];pickups=[];boosts=[];trackPath=null;
- const a0=rr()*6.283;for(let i=0;i<2;i++){const a=a0+i*(Math.PI+(rr()-.5)*1.2),rad=(.45+.3*rr())*R0*shape(a);portals.push({x:arena.cx+Math.cos(a)*rad,y:arena.cy+Math.sin(a)*rad,r:Math.max(14,ballR()*1.5)})}}
+ for(let i=0;i<2;i++)portals.push({i,off:i*PCYC/2,k:-999,r:Math.max(14,ballR()*1.5),on:false,fade:0,x:-1e9,y:-1e9});
+ const ur=Math.max(10,halfW*.42);
+ for(let j=0;j<5;j++){const o=keep&&op.length===5?op[j]:null,q=o?[o[0]*WW,o[1]*worldH]:rndIn(.75);pickups.push({r:ur,until:o?o[2]:0,x:q[0],y:q[1],idx:0})}
+ for(let j=0;j<4;j++){const o=keep&&ob.length===4?ob[j]:null,q=o?[o[0]*WW,o[1]*worldH]:rndIn(.75);boosts.push({r:ur,until:o?o[2]:0,x:q[0],y:q[1],idx:0})}
+ builtMode='rumble'}
 function mkPath(Q,lp){const n=Q.length,p=[];for(let i=0;i<(lp?n:n-1);i++){const a=lp?Q[(i+n-1)%n]:Q[Math.max(i-1,0)],b=Q[i],c=lp?Q[(i+1)%n]:Q[i+1],d=lp?Q[(i+2)%n]:Q[Math.min(i+2,n-1)],ns=Math.max(8,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/14));for(let k=0;k<ns;k++)p.push(cr(a,b,c,d,k/ns))}if(!lp)p.push(Q[n-1]);return p}
 function minRad(p,lp){const N=p.length,k=Math.max(2,Math.min(6,Math.round(halfW/8)));let m=1e9;for(let i=0;i<N;i+=2){if(!lp&&i+2*k>=N)break;const A=p[i],B=p[(i+k)%N],C=p[(i+2*k)%N],a=Math.hypot(B[0]-C[0],B[1]-C[1]),b=Math.hypot(A[0]-C[0],A[1]-C[1]),c=Math.hypot(A[0]-B[0],A[1]-B[1]),ar=Math.abs((B[0]-A[0])*(C[1]-A[1])-(C[0]-A[0])*(B[1]-A[1]))/2;if(ar>1){const R=a*b*c/(4*ar);if(R<m)m=R}}return m}
 function zig(p,offs,Z,lam){const N=p.length,cum=[0];for(let i=1;i<N;i++)cum.push(cum[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));const Lt=cum[N-1],zl=3*lam,ramp=.6*lam,out=[];
@@ -98,13 +103,12 @@ function build(){
    Q.push([.5*WW,ys(rows-1)+Rc]);path=mkPath(Q,false);if(minRad(path,false)>=halfW*.9)break;dev*=.8}}
  trackPath=new Path2D();path.forEach((p,i)=>i?trackPath.lineTo(p[0],p[1]):trackPath.moveTo(p[0],p[1]));if(lp)trackPath.closePath();
  const N=path.length,Lpx=N*13,pc=Math.max(3,Math.round(Lpx/(1000-300*L.t)));portals=[];
- for(let j=0;j<pc;j++){const idx=Math.floor(N*(.15+.7*(j+.2+.6*r())/pc)),back=Math.min(Math.floor(N*(.07+.05*r())),55+Math.floor(r()*35)),a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1,sd=j%2?1:-1;
-  const br=ballR(),rp=Math.max(halfW*.2,Math.min(halfW*.42,(2*halfW-2*br-5)/2)),of=halfW-rp;portals.push({cx:path[idx][0],cy:path[idx][1],nx:-ty/l,ny:tx/l,A:Math.max(0,halfW-rp),T:2.2+1.4*r(),ph:r()*6.2832,x:path[idx][0]-ty/l*sd*of,y:path[idx][1]+tx/l*sd*of,r:rp,idx,back})}
+ for(let j=0;j<pc;j++){const br=ballR(),rp=Math.max(halfW*.2,Math.min(halfW*.42,(2*halfW-2*br-5)/2));portals.push({i:j,off:j*PCYC/pc,k:-999,r:rp,on:false,fade:0,x:-1e9,y:-1e9})}
  const pk=Math.max(3,Math.round(Lpx/1400)),bn=Math.max(2,Math.round(Lpx/2200)),ur=Math.max(8,halfW*.42),op=pickups.map(u=>({idx:u.idx,lj:u.lj,until:u.until})),ob=boosts.map(u=>({idx:u.idx,lj:u.lj,until:u.until}));
  pickups=[];boosts=[];
- for(let j=0;j<pk;j++){const u={r:ur,until:0,idx:0,x:0,y:0};pickups.push(u);const k=builtLvl===lvl&&op.length===pk?op[j]:null;place(u,k,N);if(k)u.until=k.until}
- for(let j=0;j<bn;j++){const u={r:ur,until:0,idx:0,x:0,y:0};boosts.push(u);const k=builtLvl===lvl&&ob.length===bn?ob[j]:null;place(u,k,N);if(k)u.until=k.until}
- builtLvl=lvl}
+ for(let j=0;j<pk;j++){const u={r:ur,until:0,idx:0,x:0,y:0};pickups.push(u);const k=builtLvl===lvl&&builtMode==='race'&&op.length===pk?op[j]:null;place(u,k,N);if(k)u.until=k.until}
+ for(let j=0;j<bn;j++){const u={r:ur,until:0,idx:0,x:0,y:0};boosts.push(u);const k=builtLvl===lvl&&builtMode==='race'&&ob.length===bn?ob[j]:null;place(u,k,N);if(k)u.until=k.until}
+ builtLvl=lvl;builtMode='race'}
 function resize(){
  let nx,ny;if(ball){nx=ball.x/WW;ny=ball.y/worldH}
  dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -122,7 +126,8 @@ const prog=()=>Math.max(0,Math.min(1,total/Math.max(1,target())));
 function pres(v){Object.assign(meSt,v)}
 function beginRace(l,m){if(m)mode=m==='rumble'?'rumble':'race';lvl=mode==='rumble'?0:l;lkey=mode==='rumble'?100:lvl;rseed=net==='host'?raceId:(net==='client'&&lastRace!==null?lastRace:Math.floor(Math.random()*1e9));pickups=[];boosts=[];build();pen=0;total=0;lastIdx=0;noPortal=0;buf.clear();myTrail.length=0;otrail.clear();bars.length=0;charge=false;bounceUntil=0;lastBi.clear();wrongSince=0;wrong=false;doneT=0;time=0;
  kos=0;deaths=0;rAlive=true;lastHit.clear();lastAl.clear();lockMap.clear();fx.length=0;knockUntil=0;hitUntil=0;bots=[];spawn();state='count';startAt=performance.now()+3000;endAt=startAt+RUM_T;
- if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<8;i++){const q=rndIn(.7);bots.push({id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
+ if(mode==='rumble'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<8;i++){const q=rndIn(.7);bots.push({tr:1+Math.floor(Math.random()*3),id:'bot'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],x:q[0],y:q[1],vx:0,vy:0,alive:true,rs:0,skill:.85+Math.random()*.3})}}
+ if(mode==='race'&&!net){const hs=HUES.filter(h=>h!==myHue);for(let i=0;i<2;i++)bots.push({id:'rb'+i,n:'Bot '+(i+1),c:hs[(i*2+1)%hs.length],tr:1+Math.floor(Math.random()*3),skill:.86+Math.random()*.16,total:0,doneT:0,lat:0,latT:0,care:Math.random()<.9,noP:0,slow:0,x:path[0][0],y:path[0][1]})}
  pres({l:lkey,d:0,g:0,pn:0,f:0,k:0,al:1});show(false)}
 function hostStart(l,m){const n=performance.now();if(n-lastStartT<1000)return;lastStartT=n;raceId++;raceL=l;raceM=m||mode;beginRace(l,raceM)}
 function requestRace(l){const m=mode;if(net==='host')hostStart(l,m);else if(net==='client'&&hostConn&&hostConn.open){[0,120,240].forEach(w=>setTimeout(()=>hostConn.open&&hostConn.send({t:'start',l,m}),w))}else beginRace(l,m)}
@@ -131,6 +136,7 @@ const sc=r=>mode==='rumble'?(r.k||0):(r.d>0?2+1/(1+r.d):r.g);
 function rows(){
  const a=[{n:myName,c:myHue,g:prog(),d:doneT,pn:pen,k:kos,me:1}];
  others.forEach(o=>{if(o.n)a.push({n:o.n,c:o.c,g:o.g,d:o.d,pn:o.pn,k:o.k,me:0})});
+ if(mode==='race')for(const b of bots)a.push({n:b.n,c:b.c,g:Math.min(1,b.total/Math.max(1,target())),d:b.doneT||0,pn:0,k:0,me:0});
  return a.sort((x,y)=>sc(y)-sc(x))}
 function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')return;
  if(net&&state==='lobby'){const n=rows().length;$('msg').textContent='Room '+code+': '+n+' player'+(n==1?'':'s')+' here. Friends open this same page and enter the same code. Anyone can press Start.'}
@@ -139,9 +145,9 @@ function renderBoard(){const ul=$('board');ul.textContent='';if(state==='menu')r
 let musicOn=true;
 const ld=k=>{try{return localStorage.getItem('tb_'+k)}catch(e){return null}},sv=(k,v)=>{try{localStorage.setItem('tb_'+k,v)}catch(e){}};
 function pane(v,h,msg,keep){if(!keep)state='menu';['home','opts','cred','modes','pmenu'].forEach(k=>$(k).style.display=k===v?'block':'none');$('h').textContent=h;$('msg').textContent=msg;['go','sw','tr','inp','lvp','back'].forEach(k=>$(k).style.display='none');$('board').textContent='';show(true)}
-const showHome=()=>pane('home','TrailBall','v1.10');
+const showHome=()=>pane('home','TrailBall','v1.12');
 const showMode=()=>pane('modes','Choose mode','Race to the finish, or knock rivals off the platform.');
-const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals pull you in and fling you to a random spot, so steer away. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
+const RUMBLE_TXT='Knock other balls off the huge, shrinking platform! Purple portals appear for 5 seconds, pull you in and fling you away, then vanish and pop up elsewhere. Grab gold orbs to drop a barrier and blue orbs to bounce off the platform edge for 5 seconds. You earn a KO when a ball you bumped falls off. If you fall, you respawn after 2 seconds. Most KOs after 90 seconds wins. Playing solo adds 8 bots.';
 function optsUI(){$('mOn').className='tg'+(musicOn?' on':'');$('mOff').className='tg'+(musicOn?'':' on')}
 function setMusic(v){musicOn=v;sv('music',v?'1':'0');optsUI();if(v){aud();startMusic()}}
 let menuFrom='home';
@@ -193,10 +199,10 @@ function connect(){
 function doJoin(){
  myName=($('nm').value.trim()||'Player').slice(0,12);sv('name',myName);code=$('rm').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
  meSt={bo:0,pu:0,tr:myTr,n:myName,c:myHue,l:mode==='rumble'?100:lvl,k:0,al:1,x:0,y:0,g:0,pn:0,f:0,d:0,u:0,v:0,q:0};lastRace=null;raceId=0;
- if(!code){goLobby(mode==='rumble'?'Solo rumble':'Solo race',mode==='rumble'?'You vs 8 bots!':'Race the clock!');return}
+ if(!code){goLobby(mode==='rumble'?'Solo rumble':'Solo race',mode==='rumble'?'You vs 8 bots!':'You vs 2 bots!');return}
  if(typeof Peer==='undefined'){goLobby('Solo race','Couldn\'t load the multiplayer library, so you\'re racing solo.');return}
  $('go').disabled=true;$('msg').textContent='Connecting to room '+code+'…';connect()}
-setInterval(()=>{if(!net)return;meSt.q=(meSt.q||0)+1;
+setInterval(()=>{if(!net){if(ovOn&&state==='done'&&bots.length&&++tk%8==0)renderBoard();return}meSt.q=(meSt.q||0)+1;
  if(net==='client'){if(hostConn&&hostConn.open)hostConn.send({t:'st',s:meSt})}
  else{const all={host:meSt};others.forEach((v,k)=>all[k]=v);conns.forEach(c=>c.open&&c.send({t:'all',p:all,r:raceId,l:raceL,m:raceM}))}
  if(ovOn&&++tk%8==0)renderBoard()},33);
@@ -244,10 +250,59 @@ function drawSpace(nt){
  for(const s of STARS){const sx=(((s.x*ww-camx*s.z*.35-nt*.006*s.z)%ww)+ww)%ww-80,sy=(((s.y*hh-cam*s.z*.35)%hh)+hh)%hh-80,sz=s.s*(s.z>.6?2:1);ctx.globalAlpha=(.35+.65*(.5+.5*Math.sin(nt/(500+s.z*300)+s.p)))*(.4+.6*s.z);ctx.fillStyle=s.z>.8?'#cfe3ff':'#ffffff';ctx.fillRect(sx,sy,sz,sz)}
  ctx.globalAlpha=1;
  const k=Math.floor(nt/6500),f=(nt%6500)/6500;if(f<.1){const r1=((k*9301+49297)%233280)/233280,r2=((k*7919+1234)%233280)/233280,t=f/.1,x0=W*(.1+.8*r1),y0=H*(.05+.4*r2);ctx.strokeStyle='rgba(255,255,255,'+(1-t)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0+t*260,y0+t*130);ctx.lineTo(x0+t*260-126,y0+t*130-63);ctx.stroke()}}
-function drawPortal(p,nt,pr){if(p.x<camx-pr||p.x>camx+W+pr||p.y<cam-pr||p.y>cam+H+pr)return;
- dot(p.x,p.y,pr,'#8a4cd8',.06);ctx.strokeStyle='#b36bff';ctx.lineWidth=2;for(let q=0;q<2;q++){const f=((nt/1100)+q*.5)%1;ctx.globalAlpha=.28*(1-f);ctx.beginPath();ctx.arc(p.x,p.y,pr*(1-f),0,7);ctx.stroke()}ctx.globalAlpha=1;
- const gr=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);gr.addColorStop(0,'#000');gr.addColorStop(.6,'#4b1d8f');gr.addColorStop(1,'#b36bff');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
- ctx.setLineDash([7,6]);ctx.lineDashOffset=-nt/25;ctx.strokeStyle='#ecd6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,p.r*.78,0,7);ctx.stroke();ctx.setLineDash([])}
+function stepRaceBots(now){if(state==='count'||state==='menu'||state==='lobby'||!path.length||!ball)return;const L=LV[lvl],N=path.length,T=target();
+ for(const b of bots){if(b.doneT){b.vx=b.vy=0;continue}const ox0=b.x,oy0=b.y;
+  const i0=Math.floor(b.total)%N,ia=L.loop?i0:Math.min(i0,N-2),ib=L.loop?(ia+1)%N:ia+1,A=path[ia],B=path[ib],seg=Math.hypot(B[0]-A[0],B[1]-A[1])||13;
+  const j=L.loop?(ia+8)%N:Math.min(N-1,ia+8),C=path[j],a1=Math.atan2(B[1]-A[1],B[0]-A[0]),a2=Math.atan2(C[1]-B[1],C[0]-B[0]);let da=Math.abs(a2-a1);if(da>Math.PI)da=6.2832-da;
+  // dodge the nearest portal ahead: slip past on the side with room, or wait if the gap is closed
+  let tp=null,ta=1e9;for(const p of portals){if(!p.on)continue;const ah=L.loop?((p.idx-ia+N+3)%N)-3:p.idx-ia;if(ah>=-3&&ah<45&&ah<ta){ta=ah;tp=p}}
+  b.latT=0;let wait=false;
+  if(tp&&b.care){const eta=ta>3?ta*13/(5.2*S*b.skill)*16.7:0,l=tp.A!==undefined&&ta>3?tp.A*Math.sin(6.2832*(now+eta-startAt)/1000/tp.T+tp.ph):(tp.x-tp.cx)*tp.nx+(tp.y-tp.cy)*tp.ny,need=tp.r+ball.r*.6+4,lim=halfW-ball.r*.3,R=l+need,Lf=l-need,okR=R<=lim,okL=Lf>=-lim;
+   if(okR||okL)b.latT=okR&&okL?(Math.abs(R-b.lat)<Math.abs(Lf-b.lat)?R:Lf):(okR?R:Lf);else if(ta<14&&ta>=0)wait=true}
+  let sp=5.2*S*b.skill*(1-.45*Math.min(1,da/1.2));sp*=1-Math.max(-.15,Math.min(.15,(b.total-total)/(N*.25)*.15));if(now<b.slow)sp*=.35;if(wait)sp*=.12;
+  b.total+=sp/seg;if(b.total>=T){b.total=T;b.doneT=Math.max(.1,(now-t0)/1000)}
+  const tt=Math.min(b.total,L.loop?1e9:N-1.001),i=Math.floor(tt)%N,f=tt-Math.floor(tt),ic=L.loop?i:Math.min(i,N-2),P0=path[ic],P1=path[L.loop?(ic+1)%N:ic+1],tx=P1[0]-P0[0],ty=P1[1]-P0[1],tl=Math.hypot(tx,ty)||1,nx=-ty/tl,ny=tx/tl;
+  b.lat+=(b.latT-b.lat)*.1;b.x=P0[0]+tx*f+nx*b.lat;b.y=P0[1]+ty*f+ny*b.lat;b.vx=b.x-ox0;b.vy=b.y-oy0;
+  if(now>b.noP)for(const p of portals)if(p.on&&Math.hypot(b.x-p.x,b.y-p.y)<p.r+ball.r*.6){b.total=Math.max(0,b.total-p.back);b.noP=now+800;b.care=true;break}
+  for(const br of bars)if(br.own&&now-br.t<BAR_LIFE&&Math.hypot(b.x-br.x,b.y-br.y)<halfW*1.1)b.slow=now+1200}}
+function relocPortal(p,k){const rr=rng((rseed*7919+p.i*104729+(k+1)*1299709+13)|0);p.k=k;
+ if(mode==='rumble'){const A=arena,a=rr()*6.283,rad=(.3+.45*rr())*A.rad(a);p.x=A.cx+Math.cos(a)*rad;p.y=A.cy+Math.sin(a)*rad;return}
+ const N=path.length;if(N<20)return;const idx=Math.floor(N*(.15+.7*rr())),back=Math.min(Math.floor(N*(.07+.05*rr())),55+Math.floor(rr()*35)),a=path[idx-1],b=path[idx+1],tx=b[0]-a[0],ty=b[1]-a[1],l=Math.hypot(tx,ty)||1;
+ p.idx=idx;p.back=back;p.cx=path[idx][0];p.cy=path[idx][1];p.nx=-ty/l;p.ny=tx/l;p.A=Math.max(0,halfW-p.r);p.T=2.2+1.4*rr();p.ph=rr()*6.2832;p.x=p.cx;p.y=p.cy}
+function updPortals(now){const t=Math.max(0,now-startAt);for(const p of portals){const tt=t+p.off,k=Math.floor(tt/PCYC),cp=tt-k*PCYC;if(k!==p.k)relocPortal(p,k);
+ p.on=cp>=350&&cp<PACT-350;p.fade=cp>=PACT?0:Math.min(1,cp/350,(PACT-cp)/350);
+ if(mode==='race'&&p.A!==undefined){const l=p.A*Math.sin(6.2832*(now-startAt)/1000/p.T+p.ph);p.x=p.cx+p.nx*l;p.y=p.cy+p.ny*l}}}
+function mkBarR(x,y,a,own,now){const len=Math.max(70,ball.r*7),tk=Math.max(7,ball.r*.8);bars.push({x,y,a,own,t:now,tk,l0:-len/2,l1:len/2})}
+function barPush(o,now,skipOwn){let pushed=false;for(const b of bars){if((skipOwn&&b.own)||now-b.t>BAR_LIFE)continue;const c=Math.cos(b.a),sn=Math.sin(b.a),dx=o.x-b.x,dy=o.y-b.y,u=dx*c+dy*sn,l=-dx*sn+dy*c,hu=b.tk/2,
+  cu=Math.max(-hu,Math.min(hu,u)),cl=Math.max(b.l0,Math.min(b.l1,l)),du=u-cu,dl=l-cl,dd=Math.hypot(du,dl);
+  if(dd<o.r){let nu,nl,pn;if(dd>1e-6){nu=du/dd;nl=dl/dd;pn=o.r-dd}else{const pu2=hu-Math.abs(u),pl=Math.min(l-b.l0,b.l1-l);if(pu2<pl){nu=u>=0?1:-1;nl=0;pn=pu2+o.r}else{nu=0;nl=(l-b.l0<b.l1-l)?-1:1;pn=pl+o.r}}
+   const wx=nu*c-nl*sn,wy=nu*sn+nl*c;o.x+=wx*pn;o.y+=wy*pn;const vn=o.vx*wx+o.vy*wy;if(vn<0){o.vx-=1.3*vn*wx;o.vy-=1.3*vn*wy}pushed=true;if(o===ball&&now>thudAt){thudAt=now+300;tone(170,70,.12,'square',.1)}}}return pushed}
+function ballHits(now,ks){let pushed=false;const L=[];
+ for(const[id,q]of others){if(!q.n||q.l!==lkey||q.al===0)continue;const p=samplePos(id,q,now);L.push({id,x:p.x*WW,y:p.y*worldH,vx:q.u*WW/60,vy:q.v*worldH/60})}
+ for(const b of bots){if(b.alive===false)continue;L.push({id:b.id,x:b.x,y:b.y,vx:b.vx||0,vy:b.vy||0,b})}
+ for(const o of L){const dx=ball.x-o.x,dy=ball.y-o.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){pushed=true;const nx=dx/d,ny=dy/d;ball.x+=nx*(mr-d)*.6;ball.y+=ny*(mr-d)*.6;lastHit.set(o.id,now);const rb=!!o.b&&o.b.alive===undefined;
+   if(o.b&&!rb){const key='m'+o.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;if(now-lk.s>3000){o.b.vx-=nx*9*S;o.b.vy-=ny*9*S;ball.vx+=nx*5*S;ball.vy+=ny*5*S;o.b.flee=now+1500;o.b.fx=-nx;o.b.fy=-ny;lockMap.delete(key)}}
+   const vr=(ball.vx-o.vx)*nx+(ball.vy-o.vy)*ny;
+   if(vr<0){const j=(-1.95*vr/2+2.5*S)*ks,am=Math.max(0,-(ball.vx*nx+ball.vy*ny)),ao=Math.max(0,o.vx*nx+o.vy*ny),so=ao/(am+ao+1e-6),mm=.6+.9*so,mo=.6+.9*(1-so);
+    ball.vx+=nx*j*mm;ball.vy+=ny*j*mm;knockUntil=now+(so>.5?450:150);
+    if(o.b){if(rb)o.b.slow=Math.max(o.b.slow||0,now+(so<.5?700:300));else{o.b.vx-=nx*j*mo;o.b.vy-=ny*j*mo}}
+    fx.push({x:ball.x-nx*ball.r,y:ball.y-ny*ball.r,t:now,r:ball.r*(1+so),c:so>.5?'#ffd23a':'#ffffff'});
+    if(so>.55){hitUntil=now+260;hitAng=Math.atan2(ny,nx)}
+    if(now>lastBump){lastBump=now+120;bumpSfx();navigator.vibrate&&navigator.vibrate(so>.55?60:25)}}}}
+ return pushed}
+function drawOrbs(nt){
+ for(const u of pickups){if(nt<u.until)continue;const pz=1+.12*Math.sin(nt/180);dot(u.x,u.y,u.r*1.6*pz,'#ffd83a',.25);dot(u.x,u.y,u.r*pz,'#ffa800',1);
+  ctx.save();ctx.translate(u.x,u.y);const k=u.r/9*pz;ctx.scale(k,k);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(2,-9);ctx.lineTo(-5,2);ctx.lineTo(0,2);ctx.lineTo(-2,9);ctx.lineTo(5,-2);ctx.lineTo(0,-2);ctx.closePath();ctx.fill();ctx.restore()}
+ for(const u of boosts){if(nt<u.until)continue;const pz=1+.12*Math.sin(nt/160);dot(u.x,u.y,u.r*1.6*pz,'#38d6ff',.25);dot(u.x,u.y,u.r*pz,'#0aa8d8',1);
+  ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,u.r*.22);ctx.lineCap='round';ctx.lineJoin='round';const k=u.r*.5*pz;ctx.beginPath();ctx.moveTo(-k,k*.4);ctx.lineTo(0,-k*.5);ctx.lineTo(k,k*.4);ctx.moveTo(-k,k*1.05);ctx.lineTo(0,k*.15);ctx.lineTo(k,k*1.05);ctx.stroke();ctx.restore()}}
+function drawBars(nt){bars=bars.filter(b=>nt-b.t<=BAR_LIFE);
+ for(const b of bars){const age=nt-b.t,fade=age>BAR_LIFE-900?.55+.45*Math.sin(nt/45):1;ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.a);ctx.globalAlpha=fade;
+  for(let y=b.l0,k=0;y<b.l1;y+=10,k++){ctx.fillStyle=k%2?'#222':'#ffb300';ctx.fillRect(-b.tk/2,y,b.tk,Math.min(10,b.l1-y))}
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(-b.tk/2,b.l0,b.tk,b.l1-b.l0);ctx.restore()}}
+function drawPortal(p,nt,pr){if(!(p.fade>0))return;if(p.x<camx-pr||p.x>camx+W+pr||p.y<cam-pr||p.y>cam+H+pr)return;const F=p.fade,rr=p.r*(.55+.45*F);
+ dot(p.x,p.y,pr*F,'#8a4cd8',.06*F);ctx.strokeStyle='#b36bff';ctx.lineWidth=2;for(let q=0;q<2;q++){const f=((nt/1100)+q*.5)%1;ctx.globalAlpha=.28*(1-f)*F;ctx.beginPath();ctx.arc(p.x,p.y,pr*F*(1-f),0,7);ctx.stroke()}
+ ctx.globalAlpha=F;const gr=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);gr.addColorStop(0,'#000');gr.addColorStop(.6,'#4b1d8f');gr.addColorStop(1,'#b36bff');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(p.x,p.y,rr,0,7);ctx.fill();
+ ctx.setLineDash([7,6]);ctx.lineDashOffset=-nt/25;ctx.strokeStyle='#ecd6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,rr*.78,0,7);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1}
 const outDist=(x,y)=>{const A=arena,dx=x-A.cx,dy=y-A.cy;return Math.hypot(dx,dy)-A.rad(Math.atan2(dy,dx))};
 function stepBots(now){const A=arena,tg=[];lockMap.forEach((v,k)=>{if(now-v.last>300)lockMap.delete(k)});if(rAlive)tg.push(ball);for(const b of bots)if(b.alive)tg.push(b);
  for(const b of bots){if(!b.alive){if(now>=b.rs){const q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.alive=true}continue}
@@ -255,9 +310,9 @@ function stepBots(now){const A=arena,tg=[];lockMap.forEach((v,k)=>{if(now-v.last
   let ax=0,ay=0;if(best&&bd>0){ax=(best.x-b.x)/bd;ay=(best.y-b.y)/bd}
   if(now<b.flee){ax=b.fx;ay=b.fy}
   const dx=b.x-A.cx,dy=b.y-A.cy,dc=Math.hypot(dx,dy)||1,rad=A.rad(Math.atan2(dy,dx));if(dc>rad*.8){ax=ax*.3-dx/dc*1.4;ay=ay*.3-dy/dc*1.4}
-  b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;if(!(now<b.noP))for(const p of portals){const pr=p.r*6,px=p.x-b.x,py=p.y-b.y,pd=Math.hypot(px,py);if(pd<pr&&pd>1){const f=.11*S*(1-pd/pr);b.vx+=px/pd*f;b.vy+=py/pd*f}}
-  const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;
-  if(!(now<b.noP))for(const p of portals)if(Math.hypot(b.x-p.x,b.y-p.y)<p.r+ball.r*.4){fx.push({x:p.x,y:p.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.noP=now+800;fx.push({x:q[0],y:q[1],t:now,r:p.r*1.2,c:'#b36bff'});if(Math.hypot(b.x-ball.x,b.y-ball.y)<Math.max(W,H))portalSfx(.25);break}
+  b.vx+=ax*.22*S*b.skill;b.vy+=ay*.22*S*b.skill;b.vx*=.97;b.vy*=.97;if(!(now<b.noP))for(const p of portals){if(!p.on)continue;const pr=p.r*6,px=p.x-b.x,py=p.y-b.y,pd=Math.hypot(px,py);if(pd<pr&&pd>1){const f=.11*S*(1-pd/pr);b.vx+=px/pd*f;b.vy+=py/pd*f}}
+  const sp=Math.hypot(b.vx,b.vy),m=6.5*S;if(sp>m){b.vx*=m/sp;b.vy*=m/sp}b.x+=b.vx;b.y+=b.vy;b.r=ball.r;barPush(b,now,false);
+  if(!(now<b.noP))for(const p of portals)if(p.on&&Math.hypot(b.x-p.x,b.y-p.y)<p.r+ball.r*.4){fx.push({x:p.x,y:p.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);b.x=q[0];b.y=q[1];b.vx=b.vy=0;b.noP=now+800;fx.push({x:q[0],y:q[1],t:now,r:p.r*1.2,c:'#b36bff'});if(Math.hypot(b.x-ball.x,b.y-ball.y)<Math.max(W,H))portalSfx(.25);break}
   if(dc>rad+ball.r*.3){b.alive=false;b.rs=now+2200;if(now-(lastHit.get(b.id)||-1e9)<3000){kos++;koSfx()}}}
  for(let i=0;i<bots.length;i++)for(let j=i+1;j<bots.length;j++){const a=bots[i],b=bots[j];if(!a.alive||!b.alive)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),mr=ball.r*2;
   if(d<mr*1.15&&d>.01){const key=a.id+'-'+b.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;
@@ -267,31 +322,36 @@ function stepRumble(now){
  const A=arena;if(!A)return;
  if(state==='count'&&now>=startAt)state='play';
  const fr=state==='play'||state==='done'?Math.max(0,Math.min(1,(now-startAt)/RUM_T)):0;A.sc=1-.75*fr;A.R=A.R0*A.sc;
- for(const[id,q]of others){if(!q.n||q.l!==lkey)continue;const pv=lastAl.get(id),al=q.al!==0?1:0;if(pv===1&&al===0&&state==='play'&&now-(lastHit.get(id)||-1e9)<3000){kos++;koSfx()}lastAl.set(id,al)}
+ for(const[id,q]of others){if(!q.n||q.l!==lkey)continue;const pv=lastAl.get(id),al=q.al!==0?1:0;if(pv===1&&al===0&&state==='play'&&now-(lastHit.get(id)||-1e9)<3000){kos++;koSfx()}lastAl.set(id,al);
+  if(lastBi.has(id)){if(lastBi.get(id)!==q.bi){lastBi.set(id,q.bi);mkBarR(q.bx*WW,q.by*worldH,q.ba,false,now)}}else lastBi.set(id,q.bi)}
+ for(const u of pickups.concat(boosts)){if(now>u.until&&outDist(u.x,u.y)>-u.r*1.4){const q=rndIn(.7);u.x=q[0];u.y=q[1]}}
  if(state==='play'&&ball){
   stepBots(now);
   if(rAlive){
-   ball.vx+=tilt.x*.34*S;ball.vy+=tilt.y*.34*S;ball.vx*=.97;ball.vy*=.97;
-   if(now>noPortal)for(const p of portals){const pr=p.r*6,dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}
-   const m=(now<knockUntil?17:10)*S,sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
+   const bk=now<bounceUntil?1.15:1;
+   ball.vx+=tilt.x*.34*S*bk;ball.vy+=tilt.y*.34*S*bk;ball.vx*=.97;ball.vy*=.97;
+   if(now>noPortal)for(const p of portals){if(!p.on)continue;const pr=p.r*6,dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}
+   const m=(now<knockUntil?17:10)*S*(now<bounceUntil?1.2:1),sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
+   if(sp>.5)ball.hd=Math.atan2(ball.vy,ball.vx);
    ball.x+=ball.vx;ball.y+=ball.vy;
-   if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.4){fx.push({x:ball.x,y:ball.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
-   const L=[];for(const[id,q]of others){if(!q.n||q.l!==lkey||q.al===0)continue;const p=samplePos(id,q,now);L.push({id,x:p.x*WW,y:p.y*worldH,vx:q.u*WW/60,vy:q.v*worldH/60})}
-   for(const b of bots)if(b.alive)L.push({id:b.id,x:b.x,y:b.y,vx:b.vx,vy:b.vy,b});
-   for(const o of L){const dx=ball.x-o.x,dy=ball.y-o.y,d=Math.hypot(dx,dy),mr=ball.r*2;if(d<mr&&d>.01){const nx=dx/d,ny=dy/d;ball.x+=nx*(mr-d)*.6;ball.y+=ny*(mr-d)*.6;lastHit.set(o.id,now);if(o.b){const key='m'+o.id;let lk=lockMap.get(key);if(!lk){lk={s:now,last:now};lockMap.set(key,lk)}lk.last=now;if(now-lk.s>3000){o.b.vx-=nx*9*S;o.b.vy-=ny*9*S;ball.vx+=nx*5*S;ball.vy+=ny*5*S;o.b.flee=now+1500;o.b.fx=-nx;o.b.fy=-ny;lockMap.delete(key)}}const vr=(ball.vx-o.vx)*nx+(ball.vy-o.vy)*ny;
-     if(vr<0){const j=-1.95*vr/2+2.5*S,am=Math.max(0,-(ball.vx*nx+ball.vy*ny)),ao=Math.max(0,o.vx*nx+o.vy*ny),so=ao/(am+ao+1e-6),mm=.6+.9*so,mo=.6+.9*(1-so);
-      ball.vx+=nx*j*mm;ball.vy+=ny*j*mm;knockUntil=now+(so>.5?450:150);if(o.b){o.b.vx-=nx*j*mo;o.b.vy-=ny*j*mo}
-      fx.push({x:ball.x-nx*ball.r,y:ball.y-ny*ball.r,t:now,r:ball.r*(1+so),c:so>.5?'#ffd23a':'#ffffff'});
-      if(so>.55){hitUntil=now+260;hitAng=Math.atan2(ny,nx)}
-      if(now>lastBump){lastBump=now+120;bumpSfx();navigator.vibrate&&navigator.vibrate(so>.55?60:25)}}}}
-   if(outDist(ball.x,ball.y)>ball.r*.3){rAlive=false;respawnAt=now+2200;deaths++;fallSfx();navigator.vibrate&&navigator.vibrate(120)}
+   if(now>noPortal)for(const p of portals)if(p.on&&Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.4){fx.push({x:ball.x,y:ball.y,t:now,r:p.r*1.6,c:'#b36bff'});let q=rndIn(.5);for(let t=0;t<10&&portals.some(o=>o.on&&Math.hypot(q[0]-o.x,q[1]-o.y)<o.r*6);t++)q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
+   barPush(ball,now,true);ballHits(now,1);
+   for(const u of pickups)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){u.until=now+5000+Math.random()*6000;const q=rndIn(.7);u.x=q[0];u.y=q[1];if(!charge){charge=true;chFrom={x:ball.x,y:ball.y}}puSfx();navigator.vibrate&&navigator.vibrate(40)}
+   if(charge&&Math.hypot(ball.x-chFrom.x,ball.y-chFrom.y)>=Math.max(90,ball.r*7)){charge=false;const ang=ball.hd||0;mkBarR(ball.x,ball.y,ang,true,now);tone(260,120,.12,'triangle',.14);pres({bi:++myBi,bx:r3(ball.x/WW),by:r3(ball.y/worldH),ba:r3(ang),bs:1})}
+   for(const u of boosts)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){u.until=now+7000+Math.random()*6000;const q=rndIn(.7);u.x=q[0];u.y=q[1];bounceUntil=now+5000;bounceFlash=now;boostSfx();navigator.vibrate&&navigator.vibrate(40)}
+   const od=outDist(ball.x,ball.y);
+   if(now<bounceUntil&&od>-ball.r*.2){const e=3,gx=outDist(ball.x+e,ball.y)-outDist(ball.x-e,ball.y),gy=outDist(ball.x,ball.y+e)-outDist(ball.x,ball.y-e),gl=Math.hypot(gx,gy)||1,nx=gx/gl,ny=gy/gl,vn=ball.vx*nx+ball.vy*ny;
+    if(vn>0){ball.vx-=2*vn*nx;ball.vy-=2*vn*ny}ball.vx*=.92;ball.vy*=.92;const back=od+ball.r*.5+2;ball.x-=nx*back;ball.y-=ny*back;bounceFlash=now;if(now>lastBump){lastBump=now+150;bounceSfx();navigator.vibrate&&navigator.vibrate(40)}}
+   else if(od>ball.r*.3){rAlive=false;respawnAt=now+2200;deaths++;fallSfx();navigator.vibrate&&navigator.vibrate(120)}
   }else if(now>=respawnAt){const q=rndIn(.5);ball.x=q[0];ball.y=q[1];ball.vx=ball.vy=0;rAlive=true}
   if(now>=endAt){state='done';pres({k:kos,al:1});card('Time!','You scored '+kos+' KO'+(kos==1?'':'s')+'.','Next round',false)}}
- if(ball&&state!=='menu'&&state!=='lobby')pres({x:r3(ball.x/WW),y:r3(ball.y/worldH),u:r3(ball.vx*60/WW),v:r3(ball.vy*60/worldH),k:kos,al:rAlive?1:0,pn:deaths});
+ if(ball&&state!=='menu'&&state!=='lobby')pres({x:r3(ball.x/WW),y:r3(ball.y/worldH),u:r3(ball.vx*60/WW),v:r3(ball.vy*60/worldH),k:kos,al:rAlive?1:0,pn:deaths,pu:charge?1:0,bo:now<bounceUntil?1:0});
  if(ball){cam+=(camAx(ball.y-H*.5,worldH,H)-cam)*.15;camx+=(camAx(ball.x-W/2,WW,W)-camx)*.15}
  $('lv').textContent=state==='menu'||state==='lobby'?'':'Rumble';
  $('tm').textContent=state==='play'?Math.max(0,Math.ceil((endAt-now)/1000))+'s':'';
  let ps=state==='play'||state==='done'?'KO '+kos:'';
+ if(state==='play'&&charge)ps+=' · 🚧 ready';
+ if(state==='play'&&now<bounceUntil)ps+=' · ⚡'+Math.ceil((bounceUntil-now)/1000)+'s';
  if(net&&state==='play'){const a=rows(),me=sc({k:kos});ps+=' · '+(1+a.filter(r=>sc(r)>me&&!r.me).length)+'/'+a.length}
  $('ps').textContent=ps}
 function arenaPath(sc,pad){const A=arena;ctx.beginPath();for(let i=0;i<=128;i++){const a=6.2832*i/128,r=A.R0*sc*A.shape(a)+pad,x=A.cx+Math.cos(a)*r,y=A.cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
@@ -302,14 +362,18 @@ function drawRumble(nt){
  ctx.strokeStyle=css('--edge');ctx.globalAlpha=.5;ctx.lineWidth=2;[.33,.66].forEach(k=>{arenaPath(A.sc*k,0);ctx.stroke()});
  ctx.strokeStyle='#ff3b30';ctx.globalAlpha=.55;ctx.lineWidth=4;arenaPath(A.sc,-2);ctx.stroke();ctx.globalAlpha=1;
  for(const p of portals)drawPortal(p,nt,p.r*6);
+ drawOrbs(nt);drawBars(nt);
  const r=ball?ball.r:12,tgts=[];ctx.font='600 12px system-ui';ctx.textAlign='center';
  if(state!=='menu'&&state!=='lobby'){
   for(const[id,q]of others){if(!q.n||q.l!==lkey||q.al===0)continue;const sp=samplePos(id,q,nt),x=sp.x*WW,y=sp.y*worldH;tgts.push([x,y,q.c]);let ta=otrail.get(id);if(!ta){ta=[];otrail.set(id,ta)}if(q.tr)pushTrail(ta,x,y,nt);drawTrail(ta,q.tr,q.c,r,nt);
-   dot(x+2,y+3,r,'#000',.2);dot(x,y,r,hc(q.c,55),.9);ctx.fillStyle=css('--ink');ctx.fillText(q.n,x,y-r-6)}
-  for(const b of bots){if(!b.alive)continue;tgts.push([b.x,b.y,b.c]);dot(b.x+2,b.y+3,r,'#000',.2);dot(b.x,b.y,r,hc(b.c,50),.9);ctx.fillStyle=css('--ink');ctx.fillText(b.n,b.x,b.y-r-6)}
+   dot(x+2,y+3,r,'#000',.2);dot(x,y,r,hc(q.c,55),.9);if(q.bo>0){ctx.strokeStyle='#38d6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r+8,0,7);ctx.stroke()}if(q.pu){ctx.strokeStyle='#ffa800';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r+5+2*Math.sin(nt/100),0,7);ctx.stroke()}ctx.fillStyle=css('--ink');ctx.fillText(q.n,x,y-r-6)}
+  for(const b of bots){if(!b.alive)continue;tgts.push([b.x,b.y,b.c]);let tb=otrail.get(b.id);if(!tb){tb=[];otrail.set(b.id,tb)}if(b.tr)pushTrail(tb,b.x,b.y,nt);drawTrail(tb,b.tr,b.c,r,nt);dot(b.x+2,b.y+3,r,'#000',.2);dot(b.x,b.y,r,hc(b.c,50),.9);ctx.fillStyle=css('--ink');ctx.fillText(b.n,b.x,b.y-r-6)}
   if(ball&&rAlive){if(state==='play')pushTrail(myTrail,ball.x,ball.y,nt);drawTrail(myTrail,myTr,myHue,r,nt);dot(ball.x+3,ball.y+4,r,'#000',.2);
    if(nt<hitUntil){ctx.save();ctx.translate(ball.x,ball.y);ctx.rotate(hitAng);ctx.scale(.74,1.25);ctx.fillStyle=hc(myHue,62);ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();ctx.restore()}
-   else{const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,hc(myHue,80));gr.addColorStop(1,hc(myHue,50));ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill()}}}
+   else{const gr=ctx.createRadialGradient(ball.x-r*.3,ball.y-r*.3,r*.1,ball.x,ball.y,r);gr.addColorStop(0,hc(myHue,80));gr.addColorStop(1,hc(myHue,50));ctx.fillStyle=gr;ctx.beginPath();ctx.arc(ball.x,ball.y,r,0,7);ctx.fill()}
+   if(charge){ctx.strokeStyle='#ffa800';ctx.lineWidth=3;ctx.beginPath();ctx.arc(ball.x,ball.y,r+5+2*Math.sin(nt/100),0,7);ctx.stroke()}
+   if(nt<bounceUntil&&(bounceUntil-nt>1000||Math.sin(nt/50)>0)){ctx.strokeStyle='#38d6ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(ball.x,ball.y,r+5+2*Math.sin(nt/90),0,7);ctx.stroke();ctx.lineWidth=4;ctx.beginPath();ctx.arc(ball.x,ball.y,r+11,-Math.PI/2,-Math.PI/2+6.2832*(bounceUntil-nt)/5000);ctx.stroke()}
+   if(nt-bounceFlash<300){const f=(nt-bounceFlash)/300;ctx.strokeStyle='rgba(56,214,255,'+(1-f)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(ball.x,ball.y,r+8+f*30,0,7);ctx.stroke()}}}
  fx=fx.filter(e=>nt-e.t<420);for(const e of fx){const a=(nt-e.t)/420;ctx.globalAlpha=1-a;ctx.strokeStyle=e.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.5+1.6*a),0,7);ctx.stroke()}ctx.globalAlpha=1
  ctx.restore();ctx.textAlign='center';ctx.fillStyle=css('--ink');
  for(const t of tgts){const sx=t[0]-camx,sy=t[1]-cam;if(sx>=0&&sx<=W&&sy>=0&&sy<=H)continue;const dx=sx-W/2,dy=sy-H/2,k=Math.min((W/2-22)/Math.abs(dx||1e-6),(H/2-22)/Math.abs(dy||1e-6));
@@ -320,30 +384,27 @@ function drawRumble(nt){
  if(state==='play'&&!rAlive){ctx.font='700 22px system-ui';ctx.fillStyle='#ff3b30';ctx.fillText('Knocked out! Respawning…',W/2,H*.2)}}
 function step(){
  const now=performance.now();frame++;
- {const pt=(now-startAt)/1000;for(const p of portals){if(p.A===undefined)continue;const l=p.A*Math.sin(6.2832*pt/p.T+p.ph);p.x=p.cx+p.nx*l;p.y=p.cy+p.ny*l}}
+ updPortals(now);
+ if(mode==='race'&&bots.length)stepRaceBots(now);
  if(!drag){tilt.x=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);tilt.y=(keys.ArrowDown?1:0)-(keys.ArrowUp?1:0)}
  if(mode==='rumble'){stepRumble(now);return}
  if(state==='count'&&now>=startAt){state='play';t0=now}
  if(state==='frozen'&&now>=frozenUntil)state='play';
  if(state==='play'){
   const bk=now<bounceUntil?1.15:1;ball.vx+=tilt.x*.32*S*bk;ball.vy+=tilt.y*.32*S*bk;ball.vx*=.985;ball.vy*=.985;
-  if(now>noPortal){const pr=Math.min(5*halfW,230);for(const p of portals){const dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}}
-  const m=9*S*(now<bounceUntil?1.2:1),sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
+  if(now>noPortal){const pr=Math.min(5*halfW,230);for(const p of portals){if(!p.on)continue;const dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy);if(d<pr&&d>1){const f=.11*S*(1-d/pr);ball.vx+=dx/d*f;ball.vy+=dy/d*f}}}
+  const m=9*S*(now<bounceUntil?1.2:1)*(now<knockUntil?1.5:1),sp=Math.hypot(ball.vx,ball.vy);if(sp>m){ball.vx*=m/sp;ball.vy*=m/sp}
   ball.x+=ball.vx;ball.y+=ball.vy;
   if(ball.x<ball.r||ball.x>WW-ball.r){ball.x=Math.max(ball.r,Math.min(WW-ball.r,ball.x));ball.vx*=-.4}
   if(ball.y<ball.r||ball.y>worldH-ball.r){ball.y=Math.max(ball.r,Math.min(worldH-ball.r,ball.y));ball.vy*=-.4}
-  let pushed=false;
-  for(const b of bars){if(b.own||now-b.t>BAR_LIFE)continue;const c=Math.cos(b.a),sn=Math.sin(b.a),dx=ball.x-b.x,dy=ball.y-b.y,u=dx*c+dy*sn,l=-dx*sn+dy*c,hu=b.tk/2,
-   cu=Math.max(-hu,Math.min(hu,u)),cl=Math.max(b.l0,Math.min(b.l1,l)),du=u-cu,dl=l-cl,dd=Math.hypot(du,dl);
-   if(dd<ball.r){let nu,nl,pn;if(dd>1e-6){nu=du/dd;nl=dl/dd;pn=ball.r-dd}else{const pu2=hu-Math.abs(u),pl=Math.min(l-b.l0,b.l1-l);if(pu2<pl){nu=u>=0?1:-1;nl=0;pn=pu2+ball.r}else{nu=0;nl=(l-b.l0<b.l1-l)?-1:1;pn=pl+ball.r}}
-    const wx=nu*c-nl*sn,wy=nu*sn+nl*c;ball.x+=wx*pn;ball.y+=wy*pn;const vn=ball.vx*wx+ball.vy*wy;if(vn<0){ball.vx-=1.3*vn*wx;ball.vy-=1.3*vn*wy}pushed=true;if(now>thudAt){thudAt=now+300;tone(170,70,.12,'square',.1)}}}
+  let pushed=barPush(ball,now,true);if(ballHits(now,.7))pushed=true;
   const[d,i,px,py]=nearest(ball.x,ball.y),L=LV[lvl],NN=path.length;let df=i-lastIdx;if(L.loop){if(df>NN/2)df-=NN;else if(df<-NN/2)df+=NN}
   if(Math.abs(df)<25){total+=df;lastIdx=i}
   {const ia=L.loop?(i+1)%NN:Math.min(NN-1,i+1),ib=L.loop?(i-1+NN)%NN:Math.max(0,i-1),tx=path[ia][0]-path[ib][0],ty=path[ia][1]-path[ib][1],tl=Math.hypot(tx,ty)||1,sp2=Math.hypot(ball.vx,ball.vy);
    ball.tx=tx/tl;ball.ty=ty/tl;
    if(sp2>1.5*S&&(ball.vx*tx+ball.vy*ty)/(sp2*tl)<-.4){if(!wrongSince)wrongSince=now}else wrongSince=0;
    wrong=!!wrongSince&&now-wrongSince>350}
-  if(now>noPortal)for(const p of portals)if(Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.55){const tg=Math.max(0,p.idx-p.back);ball.x=path[tg][0];ball.y=path[tg][1];ball.vx=ball.vy=0;lastIdx=tg;total-=p.back;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
+  if(now>noPortal)for(const p of portals)if(p.on&&Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r*.55){const tg=Math.max(0,p.idx-p.back);ball.x=path[tg][0];ball.y=path[tg][1];ball.vx=ball.vy=0;lastIdx=tg;total-=p.back;noPortal=now+800;msgUntil=now+1500;myTrail.length=0;portalSfx(1);navigator.vibrate&&navigator.vibrate([60,40,60]);break}
   for(const u of pickups)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){respawn(u,now,5000,6000);if(!charge){charge=true;chFrom={x:ball.x,y:ball.y}}puSfx();navigator.vibrate&&navigator.vibrate(40)}
   if(charge&&Math.hypot(ball.x-chFrom.x,ball.y-chFrom.y)>=Math.max(90,halfW*2.5)){charge=false;const sd=Math.random()<.5?1:-1,ang=Math.atan2(ball.ty,ball.tx);mkBar(px,py,ang,sd,true,now);tone(260,120,.12,'triangle',.14);pres({bi:++myBi,bx:r3(px/WW),by:r3(py/worldH),ba:r3(ang),bs:sd})}
   for(const u of boosts)if(now>u.until&&Math.hypot(ball.x-u.x,ball.y-u.y)<u.r+ball.r*.7){respawn(u,now,7000,6000);bounceUntil=now+5000;bounceFlash=now;boostSfx();navigator.vibrate&&navigator.vibrate(40)}
@@ -360,7 +421,7 @@ function step(){
  let ps=pen?pen+' pen':'';if(lostHost)ps='host left'+(ps?' · '+ps:'');
  if(charge&&(state==='play'||state==='frozen'))ps='🚧 ready'+(ps?' · '+ps:'');
  if(now<bounceUntil&&(state==='play'||state==='frozen'))ps='⚡'+Math.ceil((bounceUntil-now)/1000)+'s'+(ps?' · '+ps:'');
- if(net&&(state==='play'||state==='frozen')){const a=rows(),me=sc({g:prog(),d:doneT});ps=(1+a.filter(r=>sc(r)>me&&!r.me).length)+'/'+a.length+(ps?' · '+ps:'')}
+ if((net||bots.length)&&mode==='race'&&(state==='play'||state==='frozen')){const a=rows(),me=sc({g:prog(),d:doneT});ps=(1+a.filter(r=>sc(r)>me&&!r.me).length)+'/'+a.length+(ps?' · '+ps:'')}
  $('ps').textContent=ps}
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
 function dot(x,y,r,fill,a){ctx.globalAlpha=a||1;ctx.fillStyle=fill;ctx.beginPath();ctx.arc(x,y,Math.max(r,0),0,7);ctx.fill();ctx.globalAlpha=1}
@@ -387,18 +448,15 @@ function draw(){
   for(let k=-4;k<4;k++)for(let c=0;c<2;c++){ctx.fillStyle=(k+c)%2?'#fff':'#222';ctx.fillRect(c*sq-sq,k*sq,sq,sq)}ctx.restore()}
  else{dot(e[0],e[1],halfW*.7,g,.3);ctx.strokeStyle=g;ctx.lineWidth=3;ctx.beginPath();ctx.arc(e[0],e[1],halfW*.7,0,7);ctx.stroke()}
  {const pr=Math.min(5*halfW,230);for(const p of portals)drawPortal(p,nt,pr)}
- for(const u of pickups){if(nt<u.until)continue;const pz=1+.12*Math.sin(nt/180);dot(u.x,u.y,u.r*1.6*pz,'#ffd83a',.25);dot(u.x,u.y,u.r*pz,'#ffa800',1);
-  ctx.save();ctx.translate(u.x,u.y);const k=u.r/9*pz;ctx.scale(k,k);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(2,-9);ctx.lineTo(-5,2);ctx.lineTo(0,2);ctx.lineTo(-2,9);ctx.lineTo(5,-2);ctx.lineTo(0,-2);ctx.closePath();ctx.fill();ctx.restore()}
- for(const u of boosts){if(nt<u.until)continue;const pz=1+.12*Math.sin(nt/160);dot(u.x,u.y,u.r*1.6*pz,'#38d6ff',.25);dot(u.x,u.y,u.r*pz,'#0aa8d8',1);
-  ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,u.r*.22);ctx.lineCap='round';ctx.lineJoin='round';const k=u.r*.5*pz;ctx.beginPath();ctx.moveTo(-k,k*.4);ctx.lineTo(0,-k*.5);ctx.lineTo(k,k*.4);ctx.moveTo(-k,k*1.05);ctx.lineTo(0,k*.15);ctx.lineTo(k,k*1.05);ctx.stroke();ctx.restore()}
+ drawOrbs(nt);
+ if(mode==='race'&&bots.length&&ball&&state!=='menu'&&state!=='lobby'){ctx.font='600 12px system-ui';ctx.textAlign='center';const rb=ball.r;
+  for(const b of bots){if(b.x<camx-80||b.x>camx+W+80||b.y<cam-80||b.y>cam+H+80)continue;let ta=otrail.get(b.id);if(!ta){ta=[];otrail.set(b.id,ta)}if(b.tr&&state!=='count'&&!b.doneT)pushTrail(ta,b.x,b.y,nt);drawTrail(ta,b.tr,b.c,rb,nt);
+   dot(b.x+2,b.y+3,rb,'#000',.2);dot(b.x,b.y,rb,hc(b.c,50),.9);ctx.fillStyle=css('--ink');ctx.fillText(b.n,b.x,b.y-rb-6)}}
  if(net&&ball&&state!=='menu'&&state!=='lobby'){ctx.font='600 12px system-ui';ctx.textAlign='center';
   for(const[id,q]of others){if(!q.n||q.l!==lkey)continue;const sp=samplePos(id,q,nt),x=sp.x*WW,y=sp.y*worldH,col=hc(q.c);
    if(lastBi.has(id)){if(lastBi.get(id)!==q.bi){lastBi.set(id,q.bi);mkBar(q.bx*WW,q.by*worldH,q.ba,q.bs,false,nt)}}else lastBi.set(id,q.bi);
    let ta=otrail.get(id);if(!ta){ta=[];otrail.set(id,ta)}if(q.tr)pushTrail(ta,x,y,nt);drawTrail(ta,q.tr,q.c,ball.r,nt)}}
- bars=bars.filter(b=>nt-b.t<=BAR_LIFE);
- for(const b of bars){const age=nt-b.t,fade=age>BAR_LIFE-900?.55+.45*Math.sin(nt/45):1;ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.a);ctx.globalAlpha=fade;
-  for(let y=b.l0,k=0;y<b.l1;y+=10,k++){ctx.fillStyle=k%2?'#222':'#ffb300';ctx.fillRect(-b.tk/2,y,b.tk,Math.min(10,b.l1-y))}
-  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(-b.tk/2,b.l0,b.tk,b.l1-b.l0);ctx.restore()}
+ drawBars(nt);
  if(net&&ball&&state!=='menu'&&state!=='lobby'){
   for(const[id,q]of others){if(!q.n||q.l!==lkey)continue;const sp=samplePos(id,q,nt),x=sp.x*WW,y=sp.y*worldH,col=hc(q.c);
    dot(x,y,ball.r,col,.7);if(q.f){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,ball.r+4,0,7);ctx.stroke()}
